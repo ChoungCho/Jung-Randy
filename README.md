@@ -1,18 +1,18 @@
-# 🏛️ 정랜디 (정치인 랜덤 디펜스)
+# 🏛️ Jung-Randy (정랜디 - Politician Random Defense)
 
-웹 기반 멀티플레이 정치인 랜덤 디펜스 게임
+A web-based multiplayer hero defense game featuring Korean politicians.
 
-> 레퍼런스: 워크래프트3 유즈맵 원랜디/나랜디
+> Inspired by Warcraft 3 custom maps: 원랜디/나랜디 (One-Randy/Na-Randy)
 
-## 🎮 게임 컨셉
+## 🎮 Game Concept
 
-- **장르**: 영웅 액션 디펜스
-- **플랫폼**: 웹 브라우저 (설치 없이 플레이)
-- **특징**: 정치인 카드 조합 시스템 + 나랜디 스타일 디펜스
+- **Genre**: Hero Action Defense
+- **Platform**: Web browser (no installation required)
+- **Features**: Politician card combination system + Na-Randy style defense gameplay
 
-## 🚀 빠른 시작
+## 🚀 Quick Start
 
-### 로컬 개발 (npm)
+### Local Development (npm)
 
 ```bash
 cd client
@@ -20,107 +20,107 @@ npm install
 npm run dev
 ```
 
-http://localhost:3000 접속
+Open http://localhost:3000
 
-### Docker 개발
+### Docker Development
 
 ```bash
 docker-compose up
 ```
 
-### 프로덕션 빌드
+### Production Build
 
 ```bash
 docker-compose --profile production up client-prod
 ```
 
-## 📁 프로젝트 구조
+## 📁 Project Structure
 
 ```
-정랜디/
-├── client/                  # 프론트엔드 (React + Phaser)
+Jung-Randy/
+├── client/                  # Frontend (React + Phaser)
 │   ├── src/
-│   │   ├── components/      # React UI 컴포넌트
-│   │   ├── game/           # Phaser 게임 코드
-│   │   │   ├── core/       # 게임 로직 (나중에 서버로 이동)
-│   │   │   ├── scenes/     # Phaser 씬
-│   │   │   ├── entities/   # 캐릭터, 몹 등
-│   │   │   └── systems/    # 조합, 뽑기 시스템
-│   │   ├── data/           # 게임 데이터 (JSON)
-│   │   ├── types/          # TypeScript 타입
-│   │   └── utils/          # 유틸리티
-│   └── public/assets/      # 스프라이트, 사운드
-├── server/                  # 백엔드 (NestJS) - 추후 구현
-├── shared/                  # 공유 타입/상수
+│   │   ├── components/      # React UI components
+│   │   ├── game/           # Phaser game code
+│   │   │   ├── core/       # Game logic (server-portable)
+│   │   │   ├── scenes/     # Phaser scenes
+│   │   │   ├── entities/   # Characters, mobs, etc.
+│   │   │   └── systems/    # Combination, gacha systems
+│   │   ├── data/           # Game data definitions
+│   │   ├── types/          # TypeScript types
+│   │   └── utils/          # Utilities
+│   └── public/assets/      # Sprites, sounds
+├── server/                  # Backend (NestJS) - planned
+├── shared/                  # Shared types/constants
 └── docker-compose.yml
 ```
 
-## 🎯 MVP 범위
+## 🎯 MVP Scope
 
-### 포함
-- 싱글 플레이 모드
-- 국민의힘 + 더불어민주당 캐릭터
-- 5티어 등급 체계 (일반 → 특별 → 고급 → 전설 → 신화)
-- 4명 유니크 정치인 진화 라인 (안철수, 이재명, 이낙연, 김문수)
-- 기본 조합 시스템
-- 20웨이브 디펜스
+### Included
+- Single player mode
+- People Power Party (국민의힘) + Democratic Party (더불어민주당) characters
+- 5-tier rarity system (Common → Special → Rare → Legendary → Mythic)
+- Unique politician evolution lines (Ahn Cheol-soo, Lee Jae-myung, etc.)
+- Basic combination system
+- 20-wave defense
 
-### 추후 확장
-- 멀티플레이
-- 추가 정치인
-- 위원회 시너지
-- 중립/초당적 유닛
+### Future Expansion
+- Multiplayer
+- Additional politicians
+- Committee synergies
+- Neutral/bipartisan units
 
-## 🔧 기술 스택
+## 🔧 Tech Stack
 
-| 영역 | 기술 |
-|------|------|
-| 프론트엔드 | React 18, Phaser 3, TypeScript |
-| 상태관리 | Zustand |
-| 빌드 | Vite |
-| 백엔드 | NestJS (추후) |
-| DB | Firebase Firestore (추후) |
-| 배포 | Docker, Firebase Hosting |
+| Area | Technology |
+|------|------------|
+| Frontend | React 18, Phaser 3, TypeScript |
+| State Management | Zustand |
+| Build Tool | Vite |
+| Backend | NestJS (planned) |
+| Database | Firebase Firestore (planned) |
+| Deployment | Docker, Firebase Hosting |
 
-## 📊 등급 체계
+## 📊 Rarity Tiers
 
-| 등급 | 이름 | 설명 |
-|------|------|------|
-| Common | 일반 | 초선 의원, 조합 재료 |
-| Special | 특별 | 재선 의원 |
-| Rare | 고급 | 다선 의원 |
-| Legendary | 전설 | 당대표/장관급 |
-| Mythic | 신화 | 대선후보/대통령급 |
+| Tier | Name | Description |
+|------|------|-------------|
+| Common | 일반 | Freshman legislators, combination material |
+| Special | 특별 | Second-term legislators |
+| Rare | 고급 | Multi-term legislators |
+| Legendary | 전설 | Party leaders / Ministers |
+| Mythic | 신화 | Presidential candidates / Presidents |
 
-## 🔄 조합 규칙
+## 🔄 Combination Rules
 
-### 기본 진화
-- 일반 × 3 → 특별
-- 특별 × 2 + 일반 × 1 → 고급
-- 고급 × 2 → 전설
-- 전설 + 재료 → 신화
+### Basic Evolution
+- Common × 3 → Special
+- Special × 2 + Common × 1 → Rare
+- Rare × 2 → Legendary
+- Legendary + Materials → Mythic
 
-### 유니크 진화 (예: 안철수)
-- 안철수(교수) + 국힘 일반 × 2 → 안철수(CEO)
-- 안철수(CEO) + 국힘 특별 × 1 → 안철수(후보)
+### Unique Evolution (e.g., Ahn Cheol-soo)
+- Ahn (Professor) + PPP Common × 2 → Ahn (CEO)
+- Ahn (CEO) + PPP Special × 1 → Ahn (Candidate)
 - ...
 
-## 📝 개발 로드맵
+## 📝 Development Roadmap
 
-- [x] 프로젝트 구조 설계
-- [x] 타입/데이터 스키마 정의
-- [x] Phaser 기본 씬 구조
-- [x] React 앱 구조
-- [ ] 실제 스프라이트 에셋
-- [ ] 뽑기/조합 UI 완성
-- [ ] 웨이브 밸런싱
-- [ ] 멀티플레이 서버
-- [ ] Firebase 연동
+- [x] Project structure design
+- [x] Type/data schema definition
+- [x] Phaser basic scene structure
+- [x] React app structure
+- [ ] Actual sprite assets
+- [ ] Gacha/combination UI completion
+- [ ] Wave balancing
+- [ ] Multiplayer server
+- [ ] Firebase integration
 
-## 👥 기여
+## 👥 Contributing
 
-비상업, 지인 멀티 플레이용 프로젝트입니다.
+This is a non-commercial project for playing with friends.
 
 ---
 
-**정랜디 v0.1.0**
+**Jung-Randy v0.1.0**
