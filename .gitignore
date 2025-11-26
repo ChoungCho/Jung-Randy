@@ -31,3 +31,9 @@ coverage/
 # Misc
 *.bak
 *.tmp
+
+# AI Assistant files
+CLAUDE.md
+Agents.md
+.codex/
+codex.md
