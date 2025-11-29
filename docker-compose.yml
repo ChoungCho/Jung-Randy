@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Frontend (React + Phaser)
+  # Frontend (React + React Three Fiber)
   client:
     build:
       context: ./client
