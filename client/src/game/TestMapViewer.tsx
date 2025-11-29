@@ -8,7 +8,7 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Grid, Stats } from '@react-three/drei';
-import React, { Suspense, useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import * as THREE from 'three';
 
 type ModelInfo = {
@@ -20,7 +20,11 @@ type ModelInfo = {
 
 const MODELS: ModelInfo[] = [
   { id: 'boss', name: 'Boss Platform', path: '/assets/terrain/boss_platform.glb', defaultScale: 1 },
-  { id: 'girl', name: 'Cartoon Girl (Sketchfab)', path: '/assets/characters/cartoon_girl.glb', defaultScale: 1 },
+  { id: 'cartoon_girl', name: 'Cartoon Girl (Sketchfab)', path: '/assets/characters/cartoon_girl.glb', defaultScale: 1 },
+  { id: 'stylized_base', name: 'Stylized Base', path: '/assets/characters/stylized_base.glb', defaultScale: 1 },
+  { id: 'modular_demo', name: 'Mini Modular (rigged demo)', path: '/assets/characters/modular_demo.glb', defaultScale: 1 },
+  { id: 'ballerina', name: 'Ballerina', path: '/assets/characters/ballerina.glb', defaultScale: 1 },
+  { id: 'mateo', name: 'Mateo', path: '/assets/characters/mateo.glb', defaultScale: 1 },
 ];
 
 MODELS.forEach((m) => useGLTF.preload(m.path));
