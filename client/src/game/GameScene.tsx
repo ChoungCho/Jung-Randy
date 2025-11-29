@@ -1,6 +1,6 @@
 // ===== MAIN GAME SCENE =====
 // Modular entry point - all logic is split into separate modules
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
@@ -25,7 +25,11 @@ import {
   ControlsPanel,
   SpawnButton,
   SelectionBox,
+  RecipePanel,
 } from './ui';
+
+// Buildings
+import { BuildingType } from './buildings';
 
 // Hooks
 import { useWaveSystem, useCharacterSystem } from './hooks';
@@ -34,6 +38,37 @@ import { useWaveSystem, useCharacterSystem } from './hooks';
 import { LANE_OFFSET } from './constants';
 
 export default function GameScene() {
+  // Recipe panel state
+  const [isRecipePanelOpen, setIsRecipePanelOpen] = useState(false);
+
+  // Building panel state
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null);
+
+  const handleBuildingSelect = (type: BuildingType) => {
+    setSelectedBuilding(prev => prev === type ? null : type);
+  };
+
+  const handleBuildingClose = () => {
+    setSelectedBuilding(null);
+  };
+
+  // Keyboard shortcut for recipe panel (C key)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.key === 'c' || e.key === 'C' || e.key === 'ㅊ') {
+        setIsRecipePanelOpen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Character system (selection, spawning, movement)
   const {
     characters,
@@ -116,6 +151,38 @@ export default function GameScene() {
         monsters={monsters}
         onUseActiveSkill={handleUseActiveSkill}
         onSelectCharacter={handleSelectSingleCharacter}
+        selectedBuilding={selectedBuilding}
+      />
+
+      {/* Recipe Button */}
+      <button
+        onClick={() => setIsRecipePanelOpen(prev => !prev)}
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          padding: '12px 24px',
+          backgroundColor: isRecipePanelOpen ? '#ff6b6b' : '#ffd700',
+          color: '#1a1a2e',
+          border: 'none',
+          borderRadius: 8,
+          fontWeight: 'bold',
+          fontSize: 14,
+          cursor: 'pointer',
+          boxShadow: isRecipePanelOpen
+            ? '0 4px 12px rgba(255, 107, 107, 0.4)'
+            : '0 4px 12px rgba(255, 215, 0, 0.4)',
+          zIndex: 100,
+          transition: 'all 0.2s',
+        }}
+      >
+        📖 조합법 (C)
+      </button>
+
+      {/* Recipe Panel */}
+      <RecipePanel
+        isOpen={isRecipePanelOpen}
+        onClose={() => setIsRecipePanelOpen(false)}
       />
 
       <Canvas shadows>
@@ -131,7 +198,10 @@ export default function GameScene() {
           shadow-mapSize-height={2048}
         />
 
-        <Platform />
+        <Platform
+          selectedBuilding={selectedBuilding}
+          onBuildingSelect={handleBuildingSelect}
+        />
 
         {/* Render all monsters */}
         {monsters.map(monster => {
@@ -183,6 +253,7 @@ export default function GameScene() {
           selectionBox={selectionBox}
           setSelectionBox={setSelectionBox}
           onMoveCommand={handleMoveCommand}
+          onGroundClick={handleBuildingClose}
         />
       </Canvas>
     </div>
