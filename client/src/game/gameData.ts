@@ -46,7 +46,7 @@ export const CHARACTER_1_STATS: CharacterStats = {
   name: 'Fighter A',
   type: 1,
   maxHp: 100,
-  attack: 15,
+  attack: 11, // Reduced by 30% (15 * 0.7 = 10.5, rounded to 11)
   defense: 5,
   attackSpeed: 1.2, // 1.2 attacks per second
   attackRange: 2.5,
@@ -79,7 +79,7 @@ export const CHARACTER_2_STATS: CharacterStats = {
   name: 'Fighter B',
   type: 2,
   maxHp: 150,
-  attack: 20,
+  attack: 14, // Reduced by 30% (20 * 0.7 = 14)
   defense: 8,
   attackSpeed: 0.9, // slower but harder hitting
   attackRange: 2.5,
@@ -115,12 +115,57 @@ export interface MonsterStats {
 }
 
 export const MONSTER_BASE_STATS: MonsterStats = {
-  baseHp: 30,
+  baseHp: 80, // Increased by 50 (30 + 50 = 80)
   baseDamage: 5,
   baseDefense: 2,
   moveSpeed: 0.07,
   hpPerWave: 15, // +15 HP per wave
   sizeMultiplierPerWave: 0.08, // +8% size per wave
+};
+
+// ===== ROUND SCALING CONFIGURATION =====
+export interface RoundScalingConfig {
+  // HP scaling: can be linear or exponential
+  hpScalingType: 'linear' | 'exponential';
+  hpLinearMultiplier: number; // for linear: baseHp + (wave - 1) * multiplier
+  hpExponentialBase: number; // for exponential: baseHp * (base ^ (wave - 1))
+  
+  // Damage scaling
+  damageScalingType: 'linear' | 'exponential';
+  damageLinearMultiplier: number;
+  damageExponentialBase: number;
+  
+  // Defense scaling
+  defenseScalingType: 'linear' | 'exponential';
+  defenseLinearMultiplier: number;
+  defenseExponentialBase: number;
+  
+  // Size scaling (always linear for visual consistency)
+  sizeMultiplierPerWave: number;
+}
+
+export const ROUND_SCALING_CONFIG: RoundScalingConfig = {
+  // HP: Exponential scaling for 50 rounds (increased difficulty - 50% more than previous)
+  // Formula: baseHp * (1.36 ^ (wave - 1))
+  // This gives: R1=30, R10=1,200, R25=1,400,000, R50=1,700,000,000 HP (very hard!)
+  hpScalingType: 'exponential',
+  hpLinearMultiplier: 15, // Not used when exponential
+  hpExponentialBase: 1.36, // 36% increase per wave (50% more than previous 24%)
+  
+  // Damage: Not used (monsters don't attack), but kept for compatibility
+  damageScalingType: 'linear',
+  damageLinearMultiplier: 0, // Not used
+  damageExponentialBase: 1.0, // Not used
+  
+  // Defense: Exponential scaling (2x the previous rate)
+  // Formula: baseDefense * (1.28 ^ (wave - 1))
+  // This gives: R1=2, R10=25, R25=1,200, R50=140,000 defense (very hard!)
+  defenseScalingType: 'exponential',
+  defenseLinearMultiplier: 1, // Not used when exponential
+  defenseExponentialBase: 1.28, // 28% increase per wave (2x the previous 14%)
+  
+  // Size: Always linear (visual only)
+  sizeMultiplierPerWave: 0.05, // +5% size per wave (reduced for 50 rounds)
 };
 
 export function getMonsterStatsForWave(wave: number): {
@@ -129,29 +174,96 @@ export function getMonsterStatsForWave(wave: number): {
   defense: number;
   sizeMultiplier: number;
 } {
-  const { baseHp, baseDamage, baseDefense, hpPerWave, sizeMultiplierPerWave } = MONSTER_BASE_STATS;
+  const { baseHp, baseDamage, baseDefense } = MONSTER_BASE_STATS;
+  const scaling = ROUND_SCALING_CONFIG;
+  
+  // Calculate HP based on scaling type
+  let hp: number;
+  if (scaling.hpScalingType === 'exponential') {
+    hp = Math.floor(baseHp * Math.pow(scaling.hpExponentialBase, wave - 1));
+  } else {
+    hp = baseHp + (wave - 1) * scaling.hpLinearMultiplier;
+  }
+  
+  // Calculate Damage - not used (monsters don't attack), but kept for type compatibility
+  // Set to 0 or base value since it's not used in gameplay
+  const damage = 0; // Monsters don't attack in this game
+  
+  // Calculate Defense based on scaling type
+  let defense: number;
+  if (scaling.defenseScalingType === 'exponential') {
+    defense = Math.floor(baseDefense * Math.pow(scaling.defenseExponentialBase, wave - 1));
+  } else {
+    defense = baseDefense + Math.floor((wave - 1) * scaling.defenseLinearMultiplier);
+  }
+  
+  // Size is always linear
+  const sizeMultiplier = 1 + (wave - 1) * scaling.sizeMultiplierPerWave;
+  
   return {
-    hp: baseHp + (wave - 1) * hpPerWave,
-    damage: baseDamage + Math.floor((wave - 1) * 2),
-    defense: baseDefense + Math.floor((wave - 1) * 1),
-    sizeMultiplier: 1 + (wave - 1) * sizeMultiplierPerWave,
+    hp,
+    damage,
+    defense,
+    sizeMultiplier,
   };
 }
 
 // ===== WAVE CONFIGURATION =====
 export interface WaveConfig {
   totalWaves: number;
-  monstersPerWave: number;
+  baseMonstersPerWave: number; // Starting number of monsters
+  monstersPerWaveScaling: 'linear' | 'exponential' | 'fixed'; // How monsters increase per wave
+  monstersPerWaveLinearIncrease: number; // For linear: base + (wave - 1) * increase
+  monstersPerWaveExponentialBase: number; // For exponential: base * (base ^ (wave - 1))
   spawnInterval: number; // ms between monster spawns
+  spawnIntervalScaling: 'fixed' | 'decreasing'; // Can decrease spawn interval for faster waves
+  spawnIntervalDecreasePerWave: number; // ms decrease per wave
   waveDelay: number; // ms before next wave starts after current wave ends
 }
 
 export const WAVE_CONFIG: WaveConfig = {
-  totalWaves: 5,
-  monstersPerWave: 15,
+  totalWaves: 50, // 50 rounds for extended gameplay
+  baseMonstersPerWave: 8, // Starting with 8 monsters (slightly lower for 50 rounds)
+  monstersPerWaveScaling: 'linear', // Linear increase by default
+  monstersPerWaveLinearIncrease: 1.5, // +1.5 monsters per wave (rounded down, so effectively +1 or +2)
+  monstersPerWaveExponentialBase: 1.05, // 5% increase per wave (if using exponential)
   spawnInterval: 1500, // spawn a monster every 1.5 seconds
+  spawnIntervalScaling: 'fixed', // Keep spawn interval constant
+  spawnIntervalDecreasePerWave: 30, // Decrease by 30ms per wave (if using decreasing)
   waveDelay: 3000, // 3 second delay between waves
 };
+
+/**
+ * Calculate the number of monsters for a specific wave
+ */
+export function getMonstersPerWave(wave: number): number {
+  const config = WAVE_CONFIG;
+  
+  if (config.monstersPerWaveScaling === 'fixed') {
+    return config.baseMonstersPerWave;
+  } else if (config.monstersPerWaveScaling === 'exponential') {
+    return Math.floor(config.baseMonstersPerWave * Math.pow(config.monstersPerWaveExponentialBase, wave - 1));
+  } else {
+    // linear - for 1.5 increase, we alternate between +1 and +2
+    const totalIncrease = (wave - 1) * config.monstersPerWaveLinearIncrease;
+    return Math.floor(config.baseMonstersPerWave + totalIncrease);
+  }
+}
+
+/**
+ * Calculate the spawn interval for a specific wave
+ */
+export function getSpawnIntervalForWave(wave: number): number {
+  const config = WAVE_CONFIG;
+  
+  if (config.spawnIntervalScaling === 'fixed') {
+    return config.spawnInterval;
+  } else {
+    // decreasing
+    const decrease = (wave - 1) * config.spawnIntervalDecreasePerWave;
+    return Math.max(500, config.spawnInterval - decrease); // Minimum 500ms
+  }
+}
 
 // ===== DAMAGE CALCULATION =====
 export function calculateDamage(

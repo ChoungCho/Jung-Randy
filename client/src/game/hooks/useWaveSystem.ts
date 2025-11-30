@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { MonsterData, GameState, SelectionTarget } from '../types';
 import { LANE_OFFSET } from '../constants';
-import { getMonsterStatsForWave, WAVE_CONFIG } from '../gameData';
+import { getMonsterStatsForWave, WAVE_CONFIG, getMonstersPerWave, getSpawnIntervalForWave } from '../gameData';
 
 interface UseWaveSystemReturn {
   // Game state
@@ -69,13 +69,17 @@ export function useWaveSystem(selectionTarget: SelectionTarget, setSelectionTarg
     setMonstersSpawnedInWave(0);
     setMonstersKilledInWave(0);
 
+    // Get wave-specific values
+    const monstersForThisWave = getMonstersPerWave(currentWave);
+    const spawnIntervalForThisWave = getSpawnIntervalForWave(currentWave);
+
     // Start spawning monsters
     let spawned = 0;
     let cancelled = false;
 
     const spawnNext = () => {
       if (cancelled) return;
-      if (spawned >= WAVE_CONFIG.monstersPerWave) {
+      if (spawned >= monstersForThisWave) {
         return;
       }
       const newMonster = createMonster(currentWave);
@@ -83,8 +87,8 @@ export function useWaveSystem(selectionTarget: SelectionTarget, setSelectionTarg
       spawned++;
       setMonstersSpawnedInWave(spawned);
 
-      if (spawned < WAVE_CONFIG.monstersPerWave) {
-        spawnTimerRef.current = setTimeout(spawnNext, WAVE_CONFIG.spawnInterval);
+      if (spawned < monstersForThisWave) {
+        spawnTimerRef.current = setTimeout(spawnNext, spawnIntervalForThisWave);
       }
     };
 
@@ -103,7 +107,9 @@ export function useWaveSystem(selectionTarget: SelectionTarget, setSelectionTarg
   useEffect(() => {
     if (gameState !== 'playing') return;
     if (waveTransitioningRef.current) return;
-    if (monstersKilledInWave >= WAVE_CONFIG.monstersPerWave && monstersSpawnedInWave >= WAVE_CONFIG.monstersPerWave) {
+    
+    const monstersForThisWave = getMonstersPerWave(currentWave);
+    if (monstersKilledInWave >= monstersForThisWave && monstersSpawnedInWave >= monstersForThisWave) {
       if (currentWave >= WAVE_CONFIG.totalWaves) {
         setGameState('gameover');
       } else {

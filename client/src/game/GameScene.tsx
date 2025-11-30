@@ -27,6 +27,9 @@ import {
   SelectionBox,
 } from './ui';
 
+// Chat
+import { ChatBox } from '../chat';
+
 // Hooks
 import { useWaveSystem, useCharacterSystem } from './hooks';
 
@@ -48,11 +51,15 @@ export default function GameScene() {
     spawnCharacter,
     handleSelectCharacter,
     handleSelectSingleCharacter,
+    handleSelectAllSameType,
     handleSelectMonster,
     handleMoveCommand,
     handleIndicatorComplete,
     handleUseActiveSkill,
     handleStateChange,
+    handleStopCommand,
+    handleSaveGroup,
+    handleSelectGroup,
   } = useCharacterSystem();
 
   // Wave system (monsters, waves, game state)
@@ -118,6 +125,14 @@ export default function GameScene() {
         onSelectCharacter={handleSelectSingleCharacter}
       />
 
+      {/* Chat Box */}
+      <ChatBox
+        onSendMessage={(message) => {
+          console.log('Chat message:', message);
+          // TODO: Implement chat message handling (e.g., send to server, display in game)
+        }}
+      />
+
       <Canvas shadows>
         <PerspectiveCamera makeDefault position={[0, 12, 10]} fov={50} />
         <RTSCameraController />
@@ -159,6 +174,7 @@ export default function GameScene() {
             data={char}
             isSelected={selectedCharacterIds.has(char.id)}
             onSelect={handleSelectCharacter}
+            onSelectAllSameType={handleSelectAllSameType}
             monsters={monsters}
             monsterPosRefs={monsterPosRefs.current}
             onAttackMonster={handleAttackMonster}
@@ -183,6 +199,9 @@ export default function GameScene() {
           selectionBox={selectionBox}
           setSelectionBox={setSelectionBox}
           onMoveCommand={handleMoveCommand}
+          onStopCommand={handleStopCommand}
+          onSaveGroup={handleSaveGroup}
+          onSelectGroup={handleSelectGroup}
         />
       </Canvas>
     </div>

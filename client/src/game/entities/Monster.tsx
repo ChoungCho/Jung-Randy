@@ -86,12 +86,17 @@ export function Monster({ data, positionRef, onDeath, onClick, isSelected }: Mon
   }, [data.isDying, data.id, clonedRunScene, clonedDeathScene, runAnims, deathAnims]);
 
   useFrame((_, delta) => {
+    // Clamp delta to prevent large jumps when browser is in background
+    // This prevents monsters from bunching up when the tab is inactive
+    const MAX_DELTA = 0.1; // Maximum 100ms per frame
+    const clampedDelta = Math.min(delta, MAX_DELTA);
+
     if (mixerRef.current) {
-      mixerRef.current.update(delta);
+      mixerRef.current.update(clampedDelta);
     }
 
     if (data.isDying) {
-      opacityRef.current = Math.max(0, opacityRef.current - delta * 0.8);
+      opacityRef.current = Math.max(0, opacityRef.current - clampedDelta * 0.8);
 
       if (groupRef.current) {
         groupRef.current.traverse((child) => {
@@ -116,8 +121,8 @@ export function Monster({ data, positionRef, onDeath, onClick, isSelected }: Mon
       return;
     }
 
-    // Update position
-    progressRef.current += delta * MONSTER_SPEED;
+    // Update position with clamped delta
+    progressRef.current += clampedDelta * MONSTER_SPEED;
     if (progressRef.current >= 1) {
       progressRef.current = 0;
     }

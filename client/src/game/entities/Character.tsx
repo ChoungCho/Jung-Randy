@@ -36,13 +36,14 @@ interface CharacterProps {
   data: CharacterData;
   isSelected: boolean;
   onSelect: (id: string, addToSelection: boolean) => void;
+  onSelectAllSameType?: (type: 1 | 2) => void; // For double-click to select all same type
   monsters: MonsterData[];
   monsterPosRefs: Map<string, THREE.Vector3>;
   onAttackMonster: (attackerId: string, monsterId: string, damage: number) => void;
   onStateChange: (charId: string, state: CharacterData['state']) => void;
 }
 
-export function Character({ data, isSelected, onSelect, monsters, monsterPosRefs, onAttackMonster, onStateChange }: CharacterProps) {
+export function Character({ data, isSelected, onSelect, onSelectAllSameType, monsters, monsterPosRefs, onAttackMonster, onStateChange }: CharacterProps) {
   const groupRef = useRef<THREE.Group>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const actionRef = useRef<THREE.AnimationAction | null>(null);
@@ -54,6 +55,7 @@ export function Character({ data, isSelected, onSelect, monsters, monsterPosRefs
   const isPlayingSkillRef = useRef(false);
   const cancelAttackRef = useRef(false);
   const isAoESkillRef = useRef(false);
+  const lastClickTimeRef = useRef<number>(0);
 
   // Keep monsters in ref to avoid useEffect re-runs when monsters change
   const monstersRef = useRef(monsters);
@@ -266,8 +268,13 @@ export function Character({ data, isSelected, onSelect, monsters, monsterPosRefs
   }, [currentState, currentScene, currentAnims, onAttackMonster, data.stats.attackSpeed, data.stats.attack, data.id, onStateChange]);
 
   useFrame((_, delta) => {
+    // Clamp delta to prevent large jumps when browser is in background
+    // This prevents characters from teleporting when the tab is inactive
+    const MAX_DELTA = 0.1; // Maximum 100ms per frame
+    const clampedDelta = Math.min(delta, MAX_DELTA);
+
     if (mixerRef.current) {
-      mixerRef.current.update(delta);
+      mixerRef.current.update(clampedDelta);
     }
 
     if (!groupRef.current) return;
@@ -287,7 +294,7 @@ export function Character({ data, isSelected, onSelect, monsters, monsterPosRefs
         }
 
         dir.normalize();
-        const moveAmount = Math.min(delta * CHARACTER_SPEED, distance);
+        const moveAmount = Math.min(clampedDelta * CHARACTER_SPEED, distance);
         currentPos.x += dir.x * moveAmount;
         currentPos.z += dir.z * moveAmount;
 
@@ -330,9 +337,15 @@ export function Character({ data, isSelected, onSelect, monsters, monsterPosRefs
             currentPos.y = 0;
           }
           data.position.copy(currentPos);
-          setCurrentState('idle');
+          // Only change to idle if not attacking
+          if (currentState === 'running') {
+            setCurrentState('idle');
+          }
         }
       }
+    } else if (!data.targetPosition && data.waypointQueue.length === 0 && currentState === 'running') {
+      // If stopped (no target and no waypoints), change to idle
+      setCurrentState('idle');
     }
 
     // Find nearest alive monster in range
@@ -399,7 +412,21 @@ export function Character({ data, isSelected, onSelect, monsters, monsterPosRefs
       scale={[charScale, charScale, charScale]}
       onClick={(e) => {
         e.stopPropagation();
-        onSelect(data.id, e.shiftKey);
+        
+        // Check for double-click
+        const currentTime = Date.now();
+        const timeSinceLastClick = currentTime - lastClickTimeRef.current;
+        const isDoubleClick = timeSinceLastClick < 300; // 300ms window for double-click
+        
+        if (isDoubleClick && onSelectAllSameType) {
+          // Double-click: Select all characters of the same type
+          onSelectAllSameType(data.type);
+          lastClickTimeRef.current = 0; // Reset to prevent triple-click
+        } else {
+          // Single click: Normal selection
+          onSelect(data.id, e.shiftKey);
+          lastClickTimeRef.current = currentTime;
+        }
       }}
     >
       <primitive object={currentScene} />

@@ -27,11 +27,15 @@ interface UseCharacterSystemReturn {
   spawnCharacter: () => void;
   handleSelectCharacter: (id: string, addToSelection: boolean) => void;
   handleSelectSingleCharacter: (id: string) => void;
+  handleSelectAllSameType: (type: 1 | 2) => void;
   handleSelectMonster: (id: string) => void;
   handleMoveCommand: (position: THREE.Vector3) => void;
   handleIndicatorComplete: (id: string) => void;
   handleUseActiveSkill: (charId: string) => void;
   handleStateChange: (charId: string, state: CharacterData['state']) => void;
+  handleStopCommand: () => void;
+  handleSaveGroup: (groupNumber: number) => void;
+  handleSelectGroup: (groupNumber: number) => void;
 }
 
 export function useCharacterSystem(): UseCharacterSystemReturn {
@@ -46,6 +50,9 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
 
   // Move indicators
   const [moveIndicators, setMoveIndicators] = useState<MoveIndicatorData[]>([]);
+
+  // Control groups (1-9)
+  const [controlGroups, setControlGroups] = useState<Map<number, Set<string>>>(new Map());
 
   // Handle move command - create indicator effect
   const handleMoveCommand = useCallback((position: THREE.Vector3) => {
@@ -111,6 +118,12 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
     setSelectedCharacterIds(new Set([id]));
   }, []);
 
+  // Select all characters of the same type (double-click)
+  const handleSelectAllSameType = useCallback((type: 1 | 2) => {
+    const sameTypeChars = characters.filter(c => c.type === type);
+    setSelectedCharacterIds(new Set(sameTypeChars.map(c => c.id)));
+  }, [characters]);
+
   // Select monster
   const handleSelectMonster = useCallback((id: string) => {
     setSelectedCharacterIds(new Set()); // Clear character selection
@@ -141,6 +154,50 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
     }));
   }, []);
 
+  // Stop selected characters (S key)
+  const handleStopCommand = useCallback(() => {
+    setCharacters(prev => prev.map(c => {
+      if (!selectedCharacterIds.has(c.id)) return c;
+      // Clear movement targets and waypoints, always set to idle
+      return {
+        ...c,
+        targetPosition: null,
+        waypointQueue: [],
+        state: 'idle' as const, // Always change to idle when stopped
+      };
+    }));
+  }, [selectedCharacterIds]);
+
+  // Save current selection to control group (Ctrl + number)
+  const handleSaveGroup = useCallback((groupNumber: number) => {
+    if (groupNumber < 1 || groupNumber > 9) return;
+    if (selectedCharacterIds.size === 0) return; // Don't save empty selection
+    
+    setControlGroups(prev => {
+      const newGroups = new Map(prev);
+      newGroups.set(groupNumber, new Set(selectedCharacterIds));
+      return newGroups;
+    });
+  }, [selectedCharacterIds]);
+
+  // Select control group (number key)
+  const handleSelectGroup = useCallback((groupNumber: number) => {
+    if (groupNumber < 1 || groupNumber > 9) return;
+    
+    const group = controlGroups.get(groupNumber);
+    if (group && group.size > 0) {
+      // Filter to only select characters that still exist
+      const existingIds = characters
+        .filter(c => group.has(c.id))
+        .map(c => c.id);
+      
+      if (existingIds.length > 0) {
+        setSelectedCharacterIds(new Set(existingIds));
+        setSelectionTarget(null); // Clear monster selection
+      }
+    }
+  }, [controlGroups, characters]);
+
   return {
     characters,
     setCharacters,
@@ -156,10 +213,14 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
     spawnCharacter,
     handleSelectCharacter,
     handleSelectSingleCharacter,
+    handleSelectAllSameType,
     handleSelectMonster,
     handleMoveCommand,
     handleIndicatorComplete,
     handleUseActiveSkill,
     handleStateChange,
+    handleStopCommand,
+    handleSaveGroup,
+    handleSelectGroup,
   };
 }

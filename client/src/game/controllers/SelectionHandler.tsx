@@ -20,6 +20,9 @@ interface SelectionHandlerProps {
   selectionBox: { start: { x: number; y: number }; end: { x: number; y: number } } | null;
   setSelectionBox: React.Dispatch<React.SetStateAction<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>>;
   onMoveCommand: (position: THREE.Vector3) => void;
+  onStopCommand: () => void;
+  onSaveGroup: (groupNumber: number) => void;
+  onSelectGroup: (groupNumber: number) => void;
 }
 
 export function SelectionHandler({
@@ -28,7 +31,10 @@ export function SelectionHandler({
   characters,
   selectionBox,
   setSelectionBox,
-  onMoveCommand
+  onMoveCommand,
+  onStopCommand,
+  onSaveGroup,
+  onSelectGroup
 }: SelectionHandlerProps) {
   const { camera, raycaster, gl } = useThree();
   const isDraggingRef = useRef(false);
@@ -210,18 +216,52 @@ export function SelectionHandler({
       setSelectionBox(null);
     };
 
+    // Keyboard: S key to stop, Ctrl+number to save group, number to select group
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if typing in input/textarea
+      if (document.activeElement?.tagName === 'INPUT' || 
+          document.activeElement?.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // S key: Stop selected characters
+      if (e.key === 'S' || e.key === 's') {
+        if (selectedCharacterIds.size > 0) {
+          e.preventDefault();
+          onStopCommand();
+        }
+        return;
+      }
+
+      // Number keys (1-9)
+      const numberKey = parseInt(e.key);
+      if (numberKey >= 1 && numberKey <= 9) {
+        if (e.ctrlKey || e.metaKey) {
+          // Ctrl/Cmd + number: Save current selection to group
+          e.preventDefault();
+          onSaveGroup(numberKey);
+        } else {
+          // Number only: Select group
+          e.preventDefault();
+          onSelectGroup(numberKey);
+        }
+      }
+    };
+
     canvas.addEventListener('contextmenu', handleContextMenu);
     canvas.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       canvas.removeEventListener('contextmenu', handleContextMenu);
       canvas.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedCharacterIds, setSelectedCharacterIds, characters, camera, raycaster, gl, selectionBox, setSelectionBox, onMoveCommand]);
+  }, [selectedCharacterIds, setSelectedCharacterIds, characters, camera, raycaster, gl, selectionBox, setSelectionBox, onMoveCommand, onStopCommand, onSaveGroup, onSelectGroup]);
 
   return null;
 }
