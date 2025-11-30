@@ -78,11 +78,11 @@ export function StatusPanel({
     const pageStart = pageIndex * (pageSize - 1);
     const remaining = Math.max(0, selectedChars.length - (pageStart + (pageSize - 1)));
     const pageSlice = selectedChars.slice(pageStart, pageStart + (pageSize - 1));
-    const itemsWithCounter = [...pageSlice, { id: 'counter', remaining }];
+    const itemsWithCounter: (CharacterData | { id: string; remaining: number })[] = [...pageSlice, { id: 'counter', remaining }];
     const firstRow = itemsWithCounter.slice(0, 9);
     let secondRow = itemsWithCounter.slice(9, 18);
     if (pageIndex > 0 && secondRow.length === 0) {
-      secondRow = [{ id: 'placeholder' }];
+      secondRow = [{ id: 'placeholder', remaining: 0 }];
     }
 
     const goNextPage = () => setMultiPage((pageIndex + 1) % totalPages);
@@ -627,4 +627,3 @@ function QuestPanel() {
     </div>
   );
 }
-

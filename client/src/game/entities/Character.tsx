@@ -1,6 +1,6 @@
 // ===== CHARACTER COMPONENT =====
 import { useRef, useState, useEffect, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import { SkeletonUtils } from 'three-stdlib';
 import * as THREE from 'three';
@@ -458,8 +458,8 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
 
       <primitive
         object={currentScene}
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e: ThreeEvent<PointerEvent>) => e.stopPropagation()}
+        onClick={(e: ThreeEvent<MouseEvent>) => e.stopPropagation()}
       />
 
       {/* Selection indicator - solid circle under character */}
