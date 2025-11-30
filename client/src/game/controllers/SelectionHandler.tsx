@@ -20,6 +20,7 @@ interface SelectionHandlerProps {
   selectionBox: { start: { x: number; y: number }; end: { x: number; y: number } } | null;
   setSelectionBox: React.Dispatch<React.SetStateAction<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>>;
   onMoveCommand: (position: THREE.Vector3) => void;
+  onGroundClick?: () => void;
 }
 
 export function SelectionHandler({
@@ -28,7 +29,8 @@ export function SelectionHandler({
   characters,
   selectionBox,
   setSelectionBox,
-  onMoveCommand
+  onMoveCommand,
+  onGroundClick
 }: SelectionHandlerProps) {
   const { camera, raycaster, gl } = useThree();
   const isDraggingRef = useRef(false);
@@ -201,6 +203,7 @@ export function SelectionHandler({
 
           if (!clickedChar && !e.shiftKey) {
             setSelectedCharacterIds(new Set());
+            onGroundClick?.();
           }
         }
       }
