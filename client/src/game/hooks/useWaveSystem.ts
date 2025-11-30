@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { MonsterData, GameState, SelectionTarget } from '../types';
 import { LANE_OFFSET } from '../constants';
-import { getMonsterStatsForWave, WAVE_CONFIG, getMonstersPerWave, getSpawnIntervalForWave } from '../gameData';
+import { getMonsterStatsForWave, WAVE_CONFIG, getMonstersPerWave, getSpawnIntervalForWave, isBossWave } from '../gameData';
 
 interface UseWaveSystemReturn {
   // Game state
@@ -43,9 +43,9 @@ export function useWaveSystem(selectionTarget: SelectionTarget, setSelectionTarg
   const waveTransitioningRef = useRef(false);
 
   // Create a monster with wave-based stats
-  const createMonster = useCallback((wave: number): MonsterData => {
+  const createMonster = useCallback((wave: number, isBoss: boolean = false): MonsterData => {
     const stats = getMonsterStatsForWave(wave);
-    const id = `monster-${monsterIdCounterRef.current++}`;
+    const id = isBoss ? `boss-${monsterIdCounterRef.current++}` : `monster-${monsterIdCounterRef.current++}`;
     monsterPosRefs.current.set(id, new THREE.Vector3(-LANE_OFFSET, 0, -LANE_OFFSET));
     return {
       id,
@@ -57,6 +57,7 @@ export function useWaveSystem(selectionTarget: SelectionTarget, setSelectionTarg
       sizeMultiplier: stats.sizeMultiplier,
       progress: 0,
       isDying: false,
+      isBoss,
     };
   }, []);
 
@@ -69,31 +70,41 @@ export function useWaveSystem(selectionTarget: SelectionTarget, setSelectionTarg
     setMonstersSpawnedInWave(0);
     setMonstersKilledInWave(0);
 
-    // Get wave-specific values
-    const monstersForThisWave = getMonstersPerWave(currentWave);
-    const spawnIntervalForThisWave = getSpawnIntervalForWave(currentWave);
+    // Check if this is a boss wave
+    const isBoss = isBossWave(currentWave);
+    let cancelled = false; // Declare cancelled outside if/else for cleanup
 
-    // Start spawning monsters
-    let spawned = 0;
-    let cancelled = false;
+    if (isBoss) {
+      // Boss wave: spawn only 1 boss monster
+      const bossMonster = createMonster(currentWave, true);
+      setMonsters(prev => [...prev, bossMonster]);
+      setMonstersSpawnedInWave(1);
+    } else {
+      // Normal wave: spawn regular monsters
+      const monstersForThisWave = getMonstersPerWave(currentWave);
+      const spawnIntervalForThisWave = getSpawnIntervalForWave(currentWave);
 
-    const spawnNext = () => {
-      if (cancelled) return;
-      if (spawned >= monstersForThisWave) {
-        return;
-      }
-      const newMonster = createMonster(currentWave);
-      setMonsters(prev => [...prev, newMonster]);
-      spawned++;
-      setMonstersSpawnedInWave(spawned);
+      // Start spawning monsters
+      let spawned = 0;
 
-      if (spawned < monstersForThisWave) {
-        spawnTimerRef.current = setTimeout(spawnNext, spawnIntervalForThisWave);
-      }
-    };
+      const spawnNext = () => {
+        if (cancelled) return;
+        if (spawned >= monstersForThisWave) {
+          return;
+        }
+        const newMonster = createMonster(currentWave, false);
+        setMonsters(prev => [...prev, newMonster]);
+        spawned++;
+        setMonstersSpawnedInWave(spawned);
 
-    // Start spawning after a small delay
-    spawnTimerRef.current = setTimeout(spawnNext, 500);
+        if (spawned < monstersForThisWave) {
+          spawnTimerRef.current = setTimeout(spawnNext, spawnIntervalForThisWave);
+        }
+      };
+
+      // Start spawning after a small delay
+      spawnTimerRef.current = setTimeout(spawnNext, 500);
+    }
 
     return () => {
       cancelled = true;
@@ -108,7 +119,9 @@ export function useWaveSystem(selectionTarget: SelectionTarget, setSelectionTarg
     if (gameState !== 'playing') return;
     if (waveTransitioningRef.current) return;
     
-    const monstersForThisWave = getMonstersPerWave(currentWave);
+    const isBoss = isBossWave(currentWave);
+    const monstersForThisWave = isBoss ? 1 : getMonstersPerWave(currentWave);
+    
     if (monstersKilledInWave >= monstersForThisWave && monstersSpawnedInWave >= monstersForThisWave) {
       if (currentWave >= WAVE_CONFIG.totalWaves) {
         setGameState('gameover');

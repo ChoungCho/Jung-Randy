@@ -73,9 +73,9 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
   const spawnCharacter = useCallback(() => {
     const type = (spawnCount % 2) + 1 as 1 | 2;
     const stats = getCharacterStats(type);
-    const innerBound = LANE_OFFSET - 1.5;
-    const spawnX = (Math.random() - 0.5) * innerBound * 1.5;
-    const spawnZ = (Math.random() - 0.5) * innerBound * 1.5;
+    // Spawn at center (0, 0)
+    const spawnX = 0;
+    const spawnZ = 0;
 
     const newChar: CharacterData = {
       id: `char-${Date.now()}`,

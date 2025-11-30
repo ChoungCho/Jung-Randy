@@ -1,12 +1,16 @@
 // ===== WAVE INFO UI =====
-import { WAVE_CONFIG } from '../gameData';
+import { WAVE_CONFIG, getMonstersPerWave, isBossWave } from '../gameData';
 
 interface WaveInfoProps {
   currentWave: number;
   monstersKilledInWave: number;
+  monstersSpawnedInWave: number;
 }
 
-export function WaveInfo({ currentWave, monstersKilledInWave }: WaveInfoProps) {
+export function WaveInfo({ currentWave, monstersKilledInWave, monstersSpawnedInWave }: WaveInfoProps) {
+  const isBoss = isBossWave(currentWave);
+  const totalMonsters = isBoss ? 1 : getMonstersPerWave(currentWave);
+  
   return (
     <div style={{
       position: 'absolute',
@@ -21,11 +25,15 @@ export function WaveInfo({ currentWave, monstersKilledInWave }: WaveInfoProps) {
       fontFamily: 'monospace',
       textAlign: 'center',
     }}>
-      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#ff9900' }}>
-        Wave {currentWave} / {WAVE_CONFIG.totalWaves}
+      <div style={{ fontSize: '20px', fontWeight: 'bold', color: isBoss ? '#ff0000' : '#ff9900' }}>
+        {isBoss ? '🔥 BOSS WAVE' : 'Wave'} {currentWave} / {WAVE_CONFIG.totalWaves}
       </div>
       <div style={{ fontSize: '14px', color: '#888' }}>
-        Monsters: {monstersKilledInWave} / {WAVE_CONFIG.monstersPerWave} killed
+        {isBoss ? (
+          <>Boss: {monstersKilledInWave > 0 ? 'Defeated ✅' : 'Alive ⚠️'}</>
+        ) : (
+          <>Monsters: {monstersKilledInWave} / {totalMonsters} killed</>
+        )}
       </div>
     </div>
   );

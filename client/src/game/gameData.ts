@@ -168,6 +168,17 @@ export const ROUND_SCALING_CONFIG: RoundScalingConfig = {
   sizeMultiplierPerWave: 0.05, // +5% size per wave (reduced for 50 rounds)
 };
 
+/**
+ * Check if a wave is a boss wave (every 10th wave)
+ */
+export function isBossWave(wave: number): boolean {
+  return wave % 10 === 0;
+}
+
+/**
+ * Get monster stats for a specific wave
+ * If it's a boss wave, returns boss stats (10x HP, 5x Defense, 2x Size)
+ */
 export function getMonsterStatsForWave(wave: number): {
   hp: number;
   damage: number;
@@ -176,29 +187,47 @@ export function getMonsterStatsForWave(wave: number): {
 } {
   const { baseHp, baseDamage, baseDefense } = MONSTER_BASE_STATS;
   const scaling = ROUND_SCALING_CONFIG;
+  const isBoss = isBossWave(wave);
+  
+  // For boss waves, calculate stats based on previous wave
+  const referenceWave = isBoss ? wave - 1 : wave;
   
   // Calculate HP based on scaling type
   let hp: number;
   if (scaling.hpScalingType === 'exponential') {
-    hp = Math.floor(baseHp * Math.pow(scaling.hpExponentialBase, wave - 1));
+    hp = Math.floor(baseHp * Math.pow(scaling.hpExponentialBase, referenceWave - 1));
   } else {
-    hp = baseHp + (wave - 1) * scaling.hpLinearMultiplier;
+    hp = baseHp + (referenceWave - 1) * scaling.hpLinearMultiplier;
+  }
+  
+  // Boss: 10x HP
+  if (isBoss) {
+    hp = hp * 10;
   }
   
   // Calculate Damage - not used (monsters don't attack), but kept for type compatibility
-  // Set to 0 or base value since it's not used in gameplay
   const damage = 0; // Monsters don't attack in this game
   
   // Calculate Defense based on scaling type
   let defense: number;
   if (scaling.defenseScalingType === 'exponential') {
-    defense = Math.floor(baseDefense * Math.pow(scaling.defenseExponentialBase, wave - 1));
+    defense = Math.floor(baseDefense * Math.pow(scaling.defenseExponentialBase, referenceWave - 1));
   } else {
-    defense = baseDefense + Math.floor((wave - 1) * scaling.defenseLinearMultiplier);
+    defense = baseDefense + Math.floor((referenceWave - 1) * scaling.defenseLinearMultiplier);
+  }
+  
+  // Boss: 5x Defense
+  if (isBoss) {
+    defense = defense * 5;
   }
   
   // Size is always linear
-  const sizeMultiplier = 1 + (wave - 1) * scaling.sizeMultiplierPerWave;
+  let sizeMultiplier = 1 + (referenceWave - 1) * scaling.sizeMultiplierPerWave;
+  
+  // Boss: 2x Size
+  if (isBoss) {
+    sizeMultiplier = sizeMultiplier * 2;
+  }
   
   return {
     hp,

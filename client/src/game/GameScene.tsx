@@ -66,6 +66,7 @@ export default function GameScene() {
   const {
     gameState,
     currentWave,
+    monstersSpawnedInWave,
     monstersKilledInWave,
     totalMonstersKilled,
     monsters,
@@ -101,6 +102,7 @@ export default function GameScene() {
       <WaveInfo
         currentWave={currentWave}
         monstersKilledInWave={monstersKilledInWave}
+        monstersSpawnedInWave={monstersSpawnedInWave}
       />
 
       {/* Left UI Panel */}

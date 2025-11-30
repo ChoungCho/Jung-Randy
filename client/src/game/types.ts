@@ -27,6 +27,7 @@ export interface MonsterData {
   sizeMultiplier: number;
   progress: number;
   isDying: boolean;
+  isBoss: boolean; // true if this is a boss monster (every 10 waves)
 }
 
 // Game state type
