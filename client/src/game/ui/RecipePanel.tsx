@@ -1,16 +1,22 @@
 // ===== RECIPE PANEL UI =====
-// Shows character combination recipes: Material1 + Material2 = Result
+// Shows politician combination recipes: Material1 + Material2 (+ Material3) = Result
 
 import { useState, useEffect } from 'react';
 import {
-  DUMMY_CHARACTERS,
-  RECIPES,
-  RARITY_COLORS,
-  RARITY_BG_COLORS,
-  getCharacterById,
-  type DummyCharacter,
-  type Rarity,
-} from '../data/dummyCharacters';
+  ALL_POLITICIANS,
+  ALL_RECIPES,
+  LV2_TO_LV3_RECIPES,
+  LV1_TO_LV2_RECIPES,
+  TIER_COLORS,
+  TIER_BG_COLORS,
+  TIER_NAMES,
+  PARTY_COLORS,
+  PARTY_NAMES,
+  getPoliticianById,
+  type Politician,
+  type PoliticianTier,
+  type PoliticianRecipe,
+} from '../data/politicians';
 import { CharacterPreview, preloadCharacterPreviews } from './CharacterPreview';
 
 interface RecipePanelProps {
@@ -18,19 +24,19 @@ interface RecipePanelProps {
   onClose: () => void;
 }
 
-// Character card component
-function CharacterCard({
-  character,
+// Politician card component
+function PoliticianCard({
+  politician,
   size = 'normal',
   onClick,
 }: {
-  character: DummyCharacter;
+  politician: Politician;
   size?: 'small' | 'normal' | 'large';
   onClick?: () => void;
 }) {
   const sizeStyles = {
-    small: { width: 60, height: 80, fontSize: 10, iconSize: 30 },
-    normal: { width: 80, height: 100, fontSize: 12, iconSize: 40 },
+    small: { width: 55, height: 75, fontSize: 9, iconSize: 28 },
+    normal: { width: 75, height: 95, fontSize: 11, iconSize: 38 },
     large: { width: 100, height: 130, fontSize: 14, iconSize: 50 },
   };
 
@@ -42,8 +48,8 @@ function CharacterCard({
       style={{
         width: s.width,
         height: s.height,
-        backgroundColor: RARITY_BG_COLORS[character.rarity],
-        border: `2px solid ${RARITY_COLORS[character.rarity]}`,
+        backgroundColor: TIER_BG_COLORS[politician.tier],
+        border: `2px solid ${TIER_COLORS[politician.tier]}`,
         borderRadius: 8,
         display: 'flex',
         flexDirection: 'column',
@@ -51,25 +57,38 @@ function CharacterCard({
         justifyContent: 'center',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'transform 0.2s, box-shadow 0.2s',
-        boxShadow: `0 0 10px ${RARITY_COLORS[character.rarity]}40`,
+        boxShadow: `0 0 10px ${TIER_COLORS[politician.tier]}40`,
+        position: 'relative',
       }}
       onMouseEnter={(e) => {
         if (onClick) {
           e.currentTarget.style.transform = 'scale(1.05)';
-          e.currentTarget.style.boxShadow = `0 0 20px ${RARITY_COLORS[character.rarity]}80`;
+          e.currentTarget.style.boxShadow = `0 0 20px ${TIER_COLORS[politician.tier]}80`;
         }
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'scale(1)';
-        e.currentTarget.style.boxShadow = `0 0 10px ${RARITY_COLORS[character.rarity]}40`;
+        e.currentTarget.style.boxShadow = `0 0 10px ${TIER_COLORS[politician.tier]}40`;
       }}
     >
+      {/* Party indicator */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 2,
+          right: 2,
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          backgroundColor: PARTY_COLORS[politician.party],
+        }}
+      />
       {/* Character 3D preview */}
       <div
         style={{
           width: s.iconSize,
           height: s.iconSize,
-          marginBottom: 4,
+          marginBottom: 2,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -78,12 +97,12 @@ function CharacterCard({
         }}
       >
         <CharacterPreview
-          characterId={character.id}
-          color={character.color}
+          characterId={politician.id}
+          color={politician.color}
           size={s.iconSize}
         />
       </div>
-      {/* Character name */}
+      {/* Politician name */}
       <div
         style={{
           fontSize: s.fontSize,
@@ -91,24 +110,24 @@ function CharacterCard({
           textAlign: 'center',
           fontWeight: 'bold',
           textShadow: '1px 1px 2px #000',
-          padding: '0 4px',
+          padding: '0 2px',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
           width: '100%',
         }}
       >
-        {character.name}
+        {politician.name}
       </div>
-      {/* Rarity badge */}
+      {/* Tier badge */}
       <div
         style={{
           fontSize: s.fontSize - 2,
-          color: RARITY_COLORS[character.rarity],
+          color: TIER_COLORS[politician.tier],
           fontWeight: 'bold',
         }}
       >
-        {character.rarity.toUpperCase()}
+        {TIER_NAMES[politician.tier]}
       </div>
     </div>
   );
@@ -116,63 +135,86 @@ function CharacterCard({
 
 // Recipe row component
 function RecipeRow({
-  materialIds,
-  resultId,
-  onCharacterClick,
+  recipe,
+  onPoliticianClick,
 }: {
-  materialIds: string[];
-  resultId: string;
-  onCharacterClick: (char: DummyCharacter) => void;
+  recipe: PoliticianRecipe;
+  onPoliticianClick: (pol: Politician) => void;
 }) {
-  const materials = materialIds.map(id => getCharacterById(id)!);
-  const result = getCharacterById(resultId)!;
+  const materials = recipe.materials.map(id => getPoliticianById(id)!).filter(Boolean);
+
+  // Handle random result
+  const isRandomResult = recipe.result === 'random_lv2';
+  const result = isRandomResult ? null : getPoliticianById(recipe.result);
+
+  if (!materials.every(m => m)) return null;
 
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 6,
-        padding: '8px 10px',
+        gap: 4,
+        padding: '6px 8px',
         backgroundColor: 'rgba(0, 0, 0, 0.3)',
         borderRadius: 8,
       }}
     >
       {/* Materials */}
       {materials.map((mat, idx) => (
-        <div key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <CharacterCard
-            character={mat}
+        <div key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <PoliticianCard
+            politician={mat}
             size="small"
-            onClick={() => onCharacterClick(mat)}
+            onClick={() => onPoliticianClick(mat)}
           />
           {idx < materials.length - 1 && (
-            <span style={{ fontSize: 16, color: '#fff', fontWeight: 'bold' }}>+</span>
+            <span style={{ fontSize: 14, color: '#fff', fontWeight: 'bold' }}>+</span>
           )}
         </div>
       ))}
 
       {/* Arrow */}
-      <span style={{ fontSize: 18, color: '#ffd700', fontWeight: 'bold', margin: '0 4px' }}>
+      <span style={{ fontSize: 16, color: '#ffd700', fontWeight: 'bold', margin: '0 4px' }}>
         →
       </span>
 
       {/* Result */}
-      <CharacterCard
-        character={result}
-        size="normal"
-        onClick={() => onCharacterClick(result)}
-      />
+      {isRandomResult ? (
+        <div
+          style={{
+            width: 75,
+            height: 95,
+            backgroundColor: '#2a2a4a',
+            border: '2px dashed #666',
+            borderRadius: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <span style={{ fontSize: 24 }}>🎲</span>
+          <span style={{ fontSize: 10, color: '#888', marginTop: 4 }}>랜덤 {TIER_NAMES.lv2}</span>
+          <span style={{ fontSize: 8, color: '#666' }}>(27종)</span>
+        </div>
+      ) : result ? (
+        <PoliticianCard
+          politician={result}
+          size="normal"
+          onClick={() => onPoliticianClick(result)}
+        />
+      ) : null}
     </div>
   );
 }
 
-// Character detail popup
-function CharacterDetail({
-  character,
+// Politician detail popup
+function PoliticianDetail({
+  politician,
   onClose,
 }: {
-  character: DummyCharacter;
+  politician: Politician;
   onClose: () => void;
 }) {
   return (
@@ -194,12 +236,13 @@ function CharacterDetail({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          backgroundColor: RARITY_BG_COLORS[character.rarity],
-          border: `3px solid ${RARITY_COLORS[character.rarity]}`,
+          backgroundColor: TIER_BG_COLORS[politician.tier],
+          border: `3px solid ${TIER_COLORS[politician.tier]}`,
           borderRadius: 16,
           padding: 24,
-          minWidth: 300,
-          boxShadow: `0 0 30px ${RARITY_COLORS[character.rarity]}60`,
+          minWidth: 320,
+          maxWidth: 400,
+          boxShadow: `0 0 30px ${TIER_COLORS[politician.tier]}60`,
         }}
       >
         {/* Header */}
@@ -209,7 +252,7 @@ function CharacterDetail({
               width: 80,
               height: 80,
               borderRadius: 8,
-              border: `3px solid ${RARITY_COLORS[character.rarity]}`,
+              border: `3px solid ${TIER_COLORS[politician.tier]}`,
               overflow: 'hidden',
               display: 'flex',
               alignItems: 'center',
@@ -218,22 +261,41 @@ function CharacterDetail({
             }}
           >
             <CharacterPreview
-              characterId={character.id}
-              color={character.color}
+              characterId={politician.id}
+              color={politician.color}
               size={80}
             />
           </div>
           <div>
-            <h2 style={{ color: '#fff', margin: 0, fontSize: 24 }}>{character.name}</h2>
-            <span
-              style={{
-                color: RARITY_COLORS[character.rarity],
-                fontWeight: 'bold',
-                fontSize: 14,
-              }}
-            >
-              {character.rarity.toUpperCase()}
-            </span>
+            <h2 style={{ color: '#fff', margin: 0, fontSize: 22 }}>{politician.name}</h2>
+            <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
+              <span
+                style={{
+                  color: TIER_COLORS[politician.tier],
+                  fontWeight: 'bold',
+                  fontSize: 13,
+                }}
+              >
+                {TIER_NAMES[politician.tier]}
+              </span>
+              <span
+                style={{
+                  backgroundColor: PARTY_COLORS[politician.party],
+                  color: '#fff',
+                  padding: '2px 8px',
+                  borderRadius: 10,
+                  fontSize: 11,
+                  fontWeight: 'bold',
+                }}
+              >
+                {politician.partyDetail || PARTY_NAMES[politician.party]}
+              </span>
+            </div>
+            {politician.terms && (
+              <div style={{ color: '#aaa', fontSize: 12, marginTop: 4 }}>
+                {politician.terms}선 의원
+              </div>
+            )}
           </div>
         </div>
 
@@ -247,28 +309,81 @@ function CharacterDetail({
           }}
         >
           <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#ff6b6b', fontSize: 24, fontWeight: 'bold' }}>
-              {character.attack}
+            <div style={{ color: '#ff6b6b', fontSize: 22, fontWeight: 'bold' }}>
+              {politician.attack}
             </div>
-            <div style={{ color: '#aaa', fontSize: 12 }}>공격력</div>
+            <div style={{ color: '#aaa', fontSize: 11 }}>공격력</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#4dabf7', fontSize: 24, fontWeight: 'bold' }}>
-              {character.defense}
+            <div style={{ color: '#4dabf7', fontSize: 22, fontWeight: 'bold' }}>
+              {politician.defense}
             </div>
-            <div style={{ color: '#aaa', fontSize: 12 }}>방어력</div>
+            <div style={{ color: '#aaa', fontSize: 11 }}>방어력</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#51cf66', fontSize: 24, fontWeight: 'bold' }}>
-              {character.hp}
+            <div style={{ color: '#51cf66', fontSize: 22, fontWeight: 'bold' }}>
+              {politician.hp}
             </div>
-            <div style={{ color: '#aaa', fontSize: 12 }}>체력</div>
+            <div style={{ color: '#aaa', fontSize: 11 }}>체력</div>
           </div>
         </div>
 
+        {/* Skill (if any) */}
+        {politician.hasSkill && politician.skillName && (
+          <div
+            style={{
+              backgroundColor: 'rgba(255, 215, 0, 0.1)',
+              border: '1px solid #ffd700',
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ color: '#ffd700', fontWeight: 'bold', fontSize: 13, marginBottom: 4 }}>
+              ⭐ {politician.skillName}
+            </div>
+            <div style={{ color: '#ddd', fontSize: 12 }}>
+              {politician.skillDescription}
+            </div>
+          </div>
+        )}
+
+        {/* Role & Committee */}
+        {(politician.role || politician.committee) && (
+          <div style={{ marginBottom: 12 }}>
+            {politician.role && (
+              <span
+                style={{
+                  backgroundColor: '#333',
+                  color: '#aaa',
+                  padding: '3px 8px',
+                  borderRadius: 4,
+                  fontSize: 11,
+                  marginRight: 6,
+                }}
+              >
+                {politician.role}
+              </span>
+            )}
+            {politician.committee && (
+              <span
+                style={{
+                  backgroundColor: '#333',
+                  color: '#aaa',
+                  padding: '3px 8px',
+                  borderRadius: 4,
+                  fontSize: 11,
+                }}
+              >
+                {politician.committee}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Description */}
-        <p style={{ color: '#ccc', fontSize: 14, lineHeight: 1.5 }}>
-          {character.description}
+        <p style={{ color: '#ccc', fontSize: 13, lineHeight: 1.5, margin: 0 }}>
+          {politician.description}
         </p>
 
         {/* Close button */}
@@ -278,7 +393,7 @@ function CharacterDetail({
             marginTop: 16,
             width: '100%',
             padding: '10px 20px',
-            backgroundColor: RARITY_COLORS[character.rarity],
+            backgroundColor: TIER_COLORS[politician.tier],
             border: 'none',
             borderRadius: 8,
             color: '#fff',
@@ -296,28 +411,36 @@ function CharacterDetail({
 
 // Main RecipePanel component
 export function RecipePanel({ isOpen, onClose }: RecipePanelProps) {
-  const [selectedRarity, setSelectedRarity] = useState<Rarity | 'all'>('all');
-  const [selectedCharacter, setSelectedCharacter] = useState<DummyCharacter | null>(null);
+  const [selectedTier, setSelectedTier] = useState<PoliticianTier | 'all'>('all');
+  const [selectedPolitician, setSelectedPolitician] = useState<Politician | null>(null);
 
   // Preload all character previews when panel opens
   useEffect(() => {
     if (isOpen) {
       preloadCharacterPreviews(
-        DUMMY_CHARACTERS.map(c => ({ id: c.id, color: c.color }))
+        ALL_POLITICIANS.map(p => ({ id: p.id, color: p.color }))
       );
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const rarities: (Rarity | 'all')[] = ['all', 'common', 'uncommon', 'rare', 'epic', 'legendary'];
+  const tiers: (PoliticianTier | 'all')[] = ['all', 'lv1', 'lv2', 'lv3'];
 
-  // Filter recipes by selected rarity (result rarity)
-  const filteredRecipes = RECIPES.filter((recipe) => {
-    if (selectedRarity === 'all') return true;
-    const result = getCharacterById(recipe.result);
-    return result?.rarity === selectedRarity;
-  });
+  // Filter recipes by selected tier (result tier)
+  const filteredRecipes = (() => {
+    if (selectedTier === 'all') return ALL_RECIPES;
+    if (selectedTier === 'lv2') return LV1_TO_LV2_RECIPES;
+    if (selectedTier === 'lv3') return LV2_TO_LV3_RECIPES;
+    return [];
+  })();
+
+  const tierDisplayNames: Record<PoliticianTier | 'all', string> = {
+    all: '전체',
+    lv1: 'Lv1 → Lv2',
+    lv2: 'Lv1 → Lv2',
+    lv3: 'Lv2 → Lv3',
+  };
 
   return (
     <>
@@ -341,9 +464,9 @@ export function RecipePanel({ isOpen, onClose }: RecipePanelProps) {
           style={{
             backgroundColor: '#1a1a2e',
             borderRadius: 16,
-            width: '90%',
-            maxWidth: 700,
-            maxHeight: '80vh',
+            width: '95%',
+            maxWidth: 850,
+            maxHeight: '85vh',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
@@ -354,7 +477,7 @@ export function RecipePanel({ isOpen, onClose }: RecipePanelProps) {
           {/* Header */}
           <div
             style={{
-              padding: '16px 20px',
+              padding: '14px 20px',
               borderBottom: '1px solid #333',
               display: 'flex',
               justifyContent: 'space-between',
@@ -362,7 +485,7 @@ export function RecipePanel({ isOpen, onClose }: RecipePanelProps) {
               backgroundColor: '#16213e',
             }}
           >
-            <h2 style={{ margin: 0, color: '#ffd700', fontSize: 20 }}>📖 조합법</h2>
+            <h2 style={{ margin: 0, color: '#ffd700', fontSize: 18 }}>📖 정치인 조합법</h2>
             <button
               onClick={onClose}
               style={{
@@ -378,49 +501,67 @@ export function RecipePanel({ isOpen, onClose }: RecipePanelProps) {
             </button>
           </div>
 
-          {/* Rarity filter tabs */}
+          {/* Tier filter tabs */}
           <div
             style={{
               display: 'flex',
               gap: 8,
-              padding: '12px 16px',
+              padding: '10px 16px',
               borderBottom: '1px solid #333',
               backgroundColor: '#0f0f23',
               flexWrap: 'wrap',
             }}
           >
-            {rarities.map((rarity) => (
+            {tiers.map((tier) => (
               <button
-                key={rarity}
-                onClick={() => setSelectedRarity(rarity)}
+                key={tier}
+                onClick={() => setSelectedTier(tier)}
                 style={{
-                  padding: '8px 16px',
+                  padding: '6px 14px',
                   borderRadius: 20,
                   border: 'none',
                   backgroundColor:
-                    selectedRarity === rarity
-                      ? rarity === 'all'
+                    selectedTier === tier
+                      ? tier === 'all'
                         ? '#666'
-                        : RARITY_COLORS[rarity as Rarity]
+                        : TIER_COLORS[tier as PoliticianTier]
                       : '#333',
                   color: '#fff',
                   cursor: 'pointer',
-                  fontWeight: selectedRarity === rarity ? 'bold' : 'normal',
+                  fontWeight: selectedTier === tier ? 'bold' : 'normal',
                   fontSize: 12,
                   transition: 'all 0.2s',
                 }}
               >
-                {rarity === 'all' ? '전체' : rarity.toUpperCase()}
+                {tier === 'all' ? '전체' : tier === 'lv2' ? '기초→일반' : tier === 'lv3' ? '일반→중진' : TIER_NAMES[tier as PoliticianTier]}
               </button>
             ))}
+
+            {/* Legend */}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: '#666' }}>정당:</span>
+              {Object.entries(PARTY_NAMES).map(([key, name]) => (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      backgroundColor: PARTY_COLORS[key as keyof typeof PARTY_COLORS],
+                    }}
+                  />
+                  <span style={{ fontSize: 10, color: '#888' }}>{name}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Recipe list - 2 columns grid */}
+          {/* Recipe list */}
           <div
             style={{
               flex: 1,
               overflow: 'auto',
-              padding: 16,
+              padding: 12,
             }}
           >
             {filteredRecipes.length === 0 ? (
@@ -428,46 +569,91 @@ export function RecipePanel({ isOpen, onClose }: RecipePanelProps) {
                 해당 등급의 조합법이 없습니다.
               </div>
             ) : (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: 8,
-                }}
-              >
-                {filteredRecipes.map((recipe) => (
-                  <RecipeRow
-                    key={recipe.id}
-                    materialIds={recipe.materials}
-                    resultId={recipe.result}
-                    onCharacterClick={setSelectedCharacter}
-                  />
-                ))}
-              </div>
+              <>
+                {/* Lv1 → Lv2 section */}
+                {(selectedTier === 'all' || selectedTier === 'lv2') && (
+                  <div style={{ marginBottom: 20 }}>
+                    <h3 style={{ color: TIER_COLORS.lv2, margin: '0 0 10px 0', fontSize: 14 }}>
+                      🔹 {TIER_NAMES.lv1} → {TIER_NAMES.lv2}
+                    </h3>
+                    <div style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>
+                      {TIER_NAMES.lv1} 두 장을 조합하면 27종 {TIER_NAMES.lv2} 중 랜덤 획득
+                    </div>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                        gap: 8,
+                      }}
+                    >
+                      {LV1_TO_LV2_RECIPES.map((recipe) => (
+                        <RecipeRow
+                          key={recipe.id}
+                          recipe={recipe}
+                          onPoliticianClick={setSelectedPolitician}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lv2 → Lv3 section */}
+                {(selectedTier === 'all' || selectedTier === 'lv3') && (
+                  <div>
+                    <h3 style={{ color: TIER_COLORS.lv3, margin: '0 0 10px 0', fontSize: 14 }}>
+                      🔷 {TIER_NAMES.lv2} → {TIER_NAMES.lv3}
+                    </h3>
+                    <div style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>
+                      {TIER_NAMES.lv2} 두 장 + {TIER_NAMES.lv1} 한 장 = 특정 {TIER_NAMES.lv3}
+                    </div>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                        gap: 8,
+                      }}
+                    >
+                      {LV2_TO_LV3_RECIPES.map((recipe) => (
+                        <RecipeRow
+                          key={recipe.id}
+                          recipe={recipe}
+                          onPoliticianClick={setSelectedPolitician}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
-          {/* Footer - Character count */}
+          {/* Footer - Stats */}
           <div
             style={{
-              padding: '12px 16px',
+              padding: '10px 16px',
               borderTop: '1px solid #333',
               backgroundColor: '#0f0f23',
               color: '#888',
-              fontSize: 12,
+              fontSize: 11,
               textAlign: 'center',
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 20,
             }}
           >
-            총 {DUMMY_CHARACTERS.length}개 캐릭터 | {RECIPES.length}개 조합법
+            <span>{TIER_NAMES.lv1}: 2명</span>
+            <span>{TIER_NAMES.lv2}: 27명</span>
+            <span>{TIER_NAMES.lv3}: 26명</span>
+            <span>총 조합법: {ALL_RECIPES.length}개</span>
           </div>
         </div>
       </div>
 
-      {/* Character detail popup */}
-      {selectedCharacter && (
-        <CharacterDetail
-          character={selectedCharacter}
-          onClose={() => setSelectedCharacter(null)}
+      {/* Politician detail popup */}
+      {selectedPolitician && (
+        <PoliticianDetail
+          politician={selectedPolitician}
+          onClose={() => setSelectedPolitician(null)}
         />
       )}
     </>
