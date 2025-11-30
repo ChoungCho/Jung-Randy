@@ -2,7 +2,14 @@
 import { useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { CharacterData, SelectionTarget, MoveIndicatorData } from '../types';
-import { getCharacterStats } from '../gameData';
+import { getCharacterStats, CharacterStats } from '../gameData';
+import {
+  Politician,
+  getPoliticianById,
+  LV1_POLITICIANS,
+  CombinationOption,
+  executeCombination,
+} from '../data/politicians';
 
 interface UseCharacterSystemReturn {
   // Characters
@@ -24,6 +31,8 @@ interface UseCharacterSystemReturn {
 
   // Callbacks
   spawnCharacter: () => void;
+  spawnPolitician: (politicianId: string) => void;
+  executeCombine: (option: CombinationOption, materialCharIds: string[]) => void;
   handleSelectCharacter: (id: string, addToSelection: boolean) => void;
   handleSelectSingleCharacter: (id: string) => void;
   handleSelectAllSameType: (type: 1 | 2) => void;
@@ -68,7 +77,7 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
     setMoveIndicators(prev => prev.filter(ind => ind.id !== id));
   }, []);
 
-  // Spawn character
+  // Spawn character (legacy - basic character types)
   const spawnCharacter = useCallback(() => {
     const type = (spawnCount % 2) + 1 as 1 | 2;
     const stats = getCharacterStats(type);
@@ -92,6 +101,141 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
     setCharacters(prev => [...prev, newChar]);
     setSpawnCount(prev => prev + 1);
   }, [spawnCount]);
+
+  // Spawn politician unit
+  const spawnPolitician = useCallback((politicianId: string) => {
+    const politician = getPoliticianById(politicianId);
+    if (!politician) {
+      console.error(`Politician not found: ${politicianId}`);
+      return;
+    }
+
+    // Convert politician stats to CharacterStats
+    const stats: CharacterStats = {
+      name: politician.name,
+      maxHp: politician.hp,
+      attack: politician.attack,
+      defense: politician.defense,
+      attackSpeed: 1.0, // Base attack speed
+      attackRange: 1.5, // Base attack range
+      skills: {
+        passive: politician.hasSkill && politician.skillName ? {
+          name: politician.skillName,
+          description: politician.skillDescription || '',
+          triggerChance: 0.2,
+          damageMultiplier: 1.5,
+        } : undefined,
+        active: undefined,
+      },
+    };
+
+    // Spawn position with slight random offset to avoid stacking
+    const offsetX = (Math.random() - 0.5) * 2;
+    const offsetZ = (Math.random() - 0.5) * 2;
+
+    const newChar: CharacterData = {
+      id: `politician-${politician.id}-${Date.now()}`,
+      type: 1, // Use type 1 model for now (will load politician model later)
+      position: new THREE.Vector3(offsetX, 0, offsetZ),
+      targetPosition: null,
+      waypointQueue: [],
+      state: 'idle',
+      lastAttackTime: 0,
+      lastActiveSkillTime: -10000,
+      stats,
+      currentHp: stats.maxHp,
+      politician: {
+        id: politician.id,
+        name: politician.name,
+        tier: politician.tier,
+        party: politician.party,
+        partyDetail: politician.partyDetail,
+        color: politician.color,
+      },
+    };
+
+    setCharacters(prev => [...prev, newChar]);
+    setSpawnCount(prev => prev + 1);
+  }, []);
+
+  // Execute combination: remove material characters and spawn result
+  const executeCombine = useCallback((option: CombinationOption, materialCharIds: string[]) => {
+    // Get material politician IDs from characters
+    const materialPoliticianIds: string[] = [];
+    const charsToRemove = new Set(materialCharIds);
+
+    for (const charId of materialCharIds) {
+      const char = characters.find(c => c.id === charId);
+      if (char?.politician) {
+        materialPoliticianIds.push(char.politician.id);
+      }
+    }
+
+    // Execute the combination
+    const resultPolitician = executeCombination(materialPoliticianIds);
+    if (!resultPolitician) {
+      console.error('Combination failed - no matching recipe');
+      return;
+    }
+
+    // Remove material characters
+    setCharacters(prev => prev.filter(c => !charsToRemove.has(c.id)));
+
+    // Clear selection
+    setSelectedCharacterIds(new Set());
+    setSelectionTarget(null);
+
+    // Spawn the result politician
+    const stats: CharacterStats = {
+      name: resultPolitician.name,
+      maxHp: resultPolitician.hp,
+      attack: resultPolitician.attack,
+      defense: resultPolitician.defense,
+      attackSpeed: 1.0,
+      attackRange: 1.5,
+      skills: {
+        passive: resultPolitician.hasSkill && resultPolitician.skillName ? {
+          name: resultPolitician.skillName,
+          description: resultPolitician.skillDescription || '',
+          triggerChance: 0.2,
+          damageMultiplier: 1.5,
+        } : undefined,
+        active: undefined,
+      },
+    };
+
+    // Spawn at center with small offset
+    const offsetX = (Math.random() - 0.5) * 2;
+    const offsetZ = (Math.random() - 0.5) * 2;
+
+    const newChar: CharacterData = {
+      id: `politician-${resultPolitician.id}-${Date.now()}`,
+      type: 1,
+      position: new THREE.Vector3(offsetX, 0, offsetZ),
+      targetPosition: null,
+      waypointQueue: [],
+      state: 'idle',
+      lastAttackTime: 0,
+      lastActiveSkillTime: -10000,
+      stats,
+      currentHp: stats.maxHp,
+      politician: {
+        id: resultPolitician.id,
+        name: resultPolitician.name,
+        tier: resultPolitician.tier,
+        party: resultPolitician.party,
+        partyDetail: resultPolitician.partyDetail,
+        color: resultPolitician.color,
+      },
+    };
+
+    // Add the new character after a small delay for visual effect
+    setTimeout(() => {
+      setCharacters(prev => [...prev, newChar]);
+    }, 100);
+
+    setSpawnCount(prev => prev + 1);
+  }, [characters]);
 
   // Select character
   const handleSelectCharacter = useCallback((id: string, addToSelection: boolean) => {
@@ -210,6 +354,8 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
     moveIndicators,
     setMoveIndicators,
     spawnCharacter,
+    spawnPolitician,
+    executeCombine,
     handleSelectCharacter,
     handleSelectSingleCharacter,
     handleSelectAllSameType,

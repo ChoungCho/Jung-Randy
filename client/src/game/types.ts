@@ -1,6 +1,7 @@
 // ===== GAME TYPES =====
 import * as THREE from 'three';
 import { CharacterStats } from './gameData';
+import { Politician, PoliticianTier, Party } from './data/politicians';
 
 // Character data structure
 export interface CharacterData {
@@ -14,6 +15,15 @@ export interface CharacterData {
   lastActiveSkillTime: number;
   stats: CharacterStats;
   currentHp: number;
+  // Politician data (optional - for combination units)
+  politician?: {
+    id: string;
+    name: string;
+    tier: PoliticianTier;
+    party: Party;
+    partyDetail?: string;
+    color: string;
+  };
 }
 
 // Monster data structure

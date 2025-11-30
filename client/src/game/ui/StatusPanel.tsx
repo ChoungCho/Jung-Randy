@@ -1,5 +1,5 @@
 // ===== STATUS PANEL UI (Bottom Panel) =====
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { CharacterData, MonsterData, SelectionTarget } from '../types';
 import { BuildingType, BUILDINGS } from '../buildings';
 import {
@@ -10,6 +10,15 @@ import {
   type DummyCharacter,
 } from '../data/dummyCharacters';
 import { CharacterPreview } from './CharacterPreview';
+import {
+  getCombinationOptions,
+  checkMaterialAvailability,
+  CombinationOption,
+  TIER_COLORS,
+  TIER_NAMES,
+  PARTY_COLORS,
+  PARTY_NAMES,
+} from '../data/politicians';
 
 interface StatusPanelProps {
   selectionTarget: SelectionTarget;
@@ -17,6 +26,7 @@ interface StatusPanelProps {
   monsters: MonsterData[];
   onUseActiveSkill: (charId: string) => void;
   onSelectCharacter: (id: string) => void;
+  onCombine?: (option: CombinationOption, materialCharIds: string[]) => void;
   selectedBuilding?: BuildingType | null;
 }
 
@@ -26,6 +36,7 @@ export function StatusPanel({
   monsters,
   onUseActiveSkill,
   onSelectCharacter,
+  onCombine,
   selectedBuilding,
 }: StatusPanelProps) {
   const [multiPage, setMultiPage] = useState(0);
@@ -146,6 +157,17 @@ export function StatusPanel({
   const activeCooldownRemaining = activeSkill
     ? Math.max(0, activeSkill.cooldown - (Date.now() - char.lastActiveSkillTime))
     : 0;
+
+  // If politician is selected, show combination panel
+  if (char.politician && onCombine) {
+    return (
+      <PoliticianStatusPanel
+        char={char}
+        characters={characters}
+        onCombine={onCombine}
+      />
+    );
+  }
 
   return (
     <div style={panelStyle()}>
@@ -624,6 +646,180 @@ function QuestPanel() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ===== POLITICIAN STATUS PANEL =====
+interface PoliticianStatusPanelProps {
+  char: CharacterData;
+  characters: CharacterData[];
+  onCombine: (option: CombinationOption, materialCharIds: string[]) => void;
+}
+
+function PoliticianStatusPanel({ char, characters, onCombine }: PoliticianStatusPanelProps) {
+  const politician = char.politician!;
+  const partyColor = PARTY_COLORS[politician.party];
+  const tierColor = TIER_COLORS[politician.tier];
+
+  // Get combination options for this politician
+  const combinationOptions = useMemo(() => {
+    return getCombinationOptions(politician.id);
+  }, [politician.id]);
+
+  // Check material availability for each option
+  const optionsWithAvailability = useMemo(() => {
+    return combinationOptions.map(option => {
+      const availability = checkMaterialAvailability(option, characters, char.id);
+      return { option, availability };
+    });
+  }, [combinationOptions, characters, char.id]);
+
+  const handleCombine = (option: CombinationOption, availability: ReturnType<typeof checkMaterialAvailability>) => {
+    if (!availability.canCombine) return;
+
+    // Collect material character IDs from all materials
+    const materialCharIds: string[] = [];
+
+    for (const mat of availability.materials) {
+      // Add character IDs for this material
+      for (const charId of mat.characterIds) {
+        if (!materialCharIds.includes(charId)) {
+          materialCharIds.push(charId);
+        }
+      }
+    }
+
+    onCombine(option, materialCharIds);
+  };
+
+  return (
+    <div style={{
+      position: 'absolute',
+      bottom: 20,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      background: 'rgba(20, 20, 40, 0.95)',
+      border: `2px solid ${partyColor}`,
+      borderRadius: '12px',
+      padding: '12px 16px',
+      color: 'white',
+      fontFamily: 'monospace',
+      minWidth: '480px',
+      zIndex: 100,
+    }}>
+      <div style={{ display: 'flex', gap: 20 }}>
+        {/* Portrait */}
+        <div style={{
+          width: 80,
+          height: 80,
+          background: `linear-gradient(135deg, ${partyColor}33, ${partyColor}11)`,
+          border: `3px solid ${partyColor}`,
+          borderRadius: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            padding: '2px 6px',
+            borderRadius: 4,
+            background: tierColor,
+            color: 'white',
+            fontSize: 9,
+            fontWeight: 'bold',
+            marginBottom: 4,
+          }}>
+            {TIER_NAMES[politician.tier]}
+          </div>
+          <div style={{ fontSize: 24 }}>🧑‍💼</div>
+        </div>
+
+        {/* Info */}
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <h3 style={{ margin: 0, color: partyColor }}>{politician.name}</h3>
+            <span style={{
+              padding: '2px 8px',
+              borderRadius: 4,
+              background: `${partyColor}33`,
+              color: partyColor,
+              fontSize: 11,
+            }}>
+              {PARTY_NAMES[politician.party]}
+            </span>
+          </div>
+          <StatBar label="HP" value={char.currentHp} max={char.stats.maxHp} />
+          <div style={{ display: 'flex', gap: 15, fontSize: 12, color: '#ccc' }}>
+            <span>ATK: {char.stats.attack}</span>
+            <span>DEF: {char.stats.defense}</span>
+            <span>SPD: {char.stats.attackSpeed.toFixed(1)}/s</span>
+          </div>
+        </div>
+
+        {/* Combination Options - Compact with tooltip */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          minWidth: 160,
+        }}>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>조합</div>
+          {optionsWithAvailability.length === 0 ? (
+            <div style={{ color: '#666', fontSize: 11 }}>최고 등급</div>
+          ) : (
+            optionsWithAvailability.map(({ option, availability }, idx) => {
+              // Build tooltip text
+              const materialText = availability.materials
+                .map(m => `${m.name} (${m.available}/${m.required})`)
+                .join(' + ');
+              const tooltipText = `${option.description}\n\n재료: ${materialText}`;
+
+              return (
+                <div
+                  key={idx}
+                  onClick={() => handleCombine(option, availability)}
+                  title={tooltipText}
+                  style={{
+                    padding: '6px 10px',
+                    background: availability.canCombine
+                      ? 'rgba(76, 175, 80, 0.2)'
+                      : 'rgba(100, 100, 100, 0.2)',
+                    border: `1px solid ${availability.canCombine ? '#4CAF50' : '#555'}`,
+                    borderRadius: 4,
+                    cursor: availability.canCombine ? 'pointer' : 'not-allowed',
+                    opacity: availability.canCombine ? 1 : 0.6,
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 6,
+                  }}
+                >
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 'bold',
+                    color: availability.canCombine ? '#4CAF50' : '#888',
+                  }}>
+                    {option.label}
+                  </span>
+                  {option.isRandom && (
+                    <span style={{
+                      fontSize: 8,
+                      padding: '1px 3px',
+                      background: '#ffd700',
+                      color: '#1a1a2e',
+                      borderRadius: 2,
+                    }}>
+                      ?
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }

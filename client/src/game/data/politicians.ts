@@ -1019,28 +1019,30 @@ export const ALL_POLITICIANS: Politician[] = [
 
 // ===== RECIPES =====
 
-// Get all Lv2 politician IDs for random pool
-const LV2_IDS = LV2_POLITICIANS.map(p => p.id);
+// Get Lv2 politician IDs by party for random pool
+const LV2_KUK_IDS = LV2_POLITICIANS.filter(p => p.party === 'kuk').map(p => p.id);
+const LV2_MIN_IDS = LV2_POLITICIANS.filter(p => p.party === 'min').map(p => p.id);
+const LV2_ALL_IDS = LV2_POLITICIANS.map(p => p.id);
 
-// Lv1 → Lv2 recipes (any 2 Lv1 = random Lv2)
+// Lv1 → Lv2 recipes (party-specific results)
 export const LV1_TO_LV2_RECIPES: PoliticianRecipe[] = [
   {
     id: 'lv1_kh_kh',
     materials: ['L1_KH', 'L1_KH'],
     result: 'random_lv2',
-    resultPool: LV2_IDS,
+    resultPool: LV2_KUK_IDS, // 국힘 지지자 2명 → 국힘 의원
   },
   {
     id: 'lv1_dm_dm',
     materials: ['L1_DM', 'L1_DM'],
     result: 'random_lv2',
-    resultPool: LV2_IDS,
+    resultPool: LV2_MIN_IDS, // 민주 지지자 2명 → 민주 의원
   },
   {
     id: 'lv1_kh_dm',
     materials: ['L1_KH', 'L1_DM'],
     result: 'random_lv2',
-    resultPool: LV2_IDS,
+    resultPool: LV2_ALL_IDS, // 크로스 조합 → 모든 의원
   },
 ];
 
@@ -1142,4 +1144,160 @@ export function executeCombination(materialIds: string[]): Politician | null {
   }
 
   return getPoliticianById(recipe.result) || null;
+}
+
+// ===== Combination Option Types =====
+export interface CombinationOption {
+  type: 'lv1_to_lv2_same' | 'lv1_to_lv2_cross' | 'lv2_to_lv3';
+  label: string;
+  description: string;
+  requiredMaterials: { politicianId: string; count: number }[];
+  resultDescription: string;
+  resultPolitician?: Politician; // For specific results
+  isRandom: boolean;
+}
+
+// Get combination options for a politician
+export function getCombinationOptions(politicianId: string): CombinationOption[] {
+  const politician = getPoliticianById(politicianId);
+  if (!politician) return [];
+
+  const options: CombinationOption[] = [];
+
+  if (politician.tier === 'lv1') {
+    // Lv1 → Lv2 options
+    if (politician.party === 'kuk') {
+      // 국힘 지지자
+      options.push({
+        type: 'lv1_to_lv2_same',
+        label: '국힘 일반의원',
+        description: '국힘 지지자 2명 → 랜덤 일반의원',
+        requiredMaterials: [{ politicianId: 'L1_KH', count: 2 }],
+        resultDescription: '랜덤 일반 의원',
+        isRandom: true,
+      });
+      options.push({
+        type: 'lv1_to_lv2_cross',
+        label: '크로스 조합',
+        description: '국힘 + 민주 지지자 → 랜덤 일반의원',
+        requiredMaterials: [
+          { politicianId: 'L1_KH', count: 1 },
+          { politicianId: 'L1_DM', count: 1 },
+        ],
+        resultDescription: '랜덤 일반 의원',
+        isRandom: true,
+      });
+    } else if (politician.party === 'min') {
+      // 민주 지지자
+      options.push({
+        type: 'lv1_to_lv2_same',
+        label: '민주 일반의원',
+        description: '민주 지지자 2명 → 랜덤 일반의원',
+        requiredMaterials: [{ politicianId: 'L1_DM', count: 2 }],
+        resultDescription: '랜덤 일반 의원',
+        isRandom: true,
+      });
+      options.push({
+        type: 'lv1_to_lv2_cross',
+        label: '크로스 조합',
+        description: '민주 + 국힘 지지자 → 랜덤 일반의원',
+        requiredMaterials: [
+          { politicianId: 'L1_DM', count: 1 },
+          { politicianId: 'L1_KH', count: 1 },
+        ],
+        resultDescription: '랜덤 일반 의원',
+        isRandom: true,
+      });
+    }
+  } else if (politician.tier === 'lv2') {
+    // Lv2 → Lv3 options: find recipes where this politician is a material
+    const recipes = getRecipesByMaterial(politicianId);
+    for (const recipe of recipes) {
+      if (recipe.result === 'random_lv2') continue; // Skip lv1→lv2 recipes
+
+      const resultPolitician = getPoliticianById(recipe.result);
+      if (!resultPolitician) continue;
+
+      // Build required materials list
+      const materialCounts: Record<string, number> = {};
+      for (const mat of recipe.materials) {
+        materialCounts[mat] = (materialCounts[mat] || 0) + 1;
+      }
+
+      const requiredMaterials = Object.entries(materialCounts).map(([id, count]) => ({
+        politicianId: id,
+        count,
+      }));
+
+      // Find the other Lv2 material
+      const otherLv2 = recipe.materials.find(m => m !== politicianId && getPoliticianById(m)?.tier === 'lv2');
+      const otherLv2Politician = otherLv2 ? getPoliticianById(otherLv2) : null;
+      const lv1Material = recipe.materials.find(m => getPoliticianById(m)?.tier === 'lv1');
+      const lv1Politician = lv1Material ? getPoliticianById(lv1Material) : null;
+
+      options.push({
+        type: 'lv2_to_lv3',
+        label: resultPolitician.name,
+        description: `${politician.name} + ${otherLv2Politician?.name || '?'} + ${lv1Politician?.name || '?'}`,
+        requiredMaterials,
+        resultDescription: resultPolitician.name,
+        resultPolitician,
+        isRandom: false,
+      });
+    }
+  }
+
+  return options;
+}
+
+// Check if materials are available in the character list
+export interface MaterialAvailability {
+  politicianId: string;
+  name: string;
+  required: number;
+  available: number;
+  characterIds: string[]; // IDs of characters that can be used
+}
+
+export function checkMaterialAvailability(
+  option: CombinationOption,
+  characters: { id: string; politician?: { id: string } }[],
+  excludeCharacterId?: string // The currently selected character
+): { canCombine: boolean; materials: MaterialAvailability[] } {
+  const materials: MaterialAvailability[] = [];
+  let canCombine = true;
+
+  for (const req of option.requiredMaterials) {
+    const politician = getPoliticianById(req.politicianId);
+    const matchingChars = characters.filter(c =>
+      c.politician?.id === req.politicianId &&
+      c.id !== excludeCharacterId
+    );
+
+    // If this is the same as selected character, we already have 1
+    const selectedIsSameMaterial = excludeCharacterId &&
+      characters.find(c => c.id === excludeCharacterId)?.politician?.id === req.politicianId;
+
+    const availableCount = selectedIsSameMaterial
+      ? matchingChars.length + 1
+      : matchingChars.length;
+
+    const availability: MaterialAvailability = {
+      politicianId: req.politicianId,
+      name: politician?.name || req.politicianId,
+      required: req.count,
+      available: availableCount,
+      characterIds: selectedIsSameMaterial
+        ? [excludeCharacterId!, ...matchingChars.map(c => c.id)].slice(0, req.count)
+        : matchingChars.map(c => c.id).slice(0, req.count),
+    };
+
+    materials.push(availability);
+
+    if (availableCount < req.count) {
+      canCombine = false;
+    }
+  }
+
+  return { canCombine, materials };
 }

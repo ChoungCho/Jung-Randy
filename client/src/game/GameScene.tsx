@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { Platform } from './terrain';
 
 // Entities
-import { Character, Monster } from './entities';
+import { Character, PoliticianCharacter, Monster } from './entities';
 
 // Components
 import { MoveIndicator } from './components';
@@ -84,6 +84,8 @@ export default function GameScene() {
     setSelectionBox,
     moveIndicators,
     spawnCharacter,
+    spawnPolitician,
+    executeCombine,
     handleSelectCharacter,
     handleSelectSingleCharacter,
     handleSelectAllSameType,
@@ -158,6 +160,7 @@ export default function GameScene() {
       <SpawnButton
         spawnCount={spawnCount}
         onSpawn={spawnCharacter}
+        onSpawnPolitician={spawnPolitician}
       />
 
       {/* Status Panel */}
@@ -167,6 +170,7 @@ export default function GameScene() {
         monsters={monsters}
         onUseActiveSkill={handleUseActiveSkill}
         onSelectCharacter={handleSelectSingleCharacter}
+        onCombine={executeCombine}
         selectedBuilding={selectedBuilding}
       />
 
@@ -248,17 +252,31 @@ export default function GameScene() {
 
         {/* Render all characters */}
         {characters.map(char => (
-          <Character
-            key={char.id}
-            data={char}
-            isSelected={selectedCharacterIds.has(char.id)}
-            onSelect={handleSelectCharacter}
-            onSelectAllSameType={handleSelectAllSameType}
-            monsters={monsters}
-            monsterPosRefs={monsterPosRefs.current}
-            onAttackMonster={handleAttackMonster}
-            onStateChange={handleStateChange}
-          />
+          char.politician ? (
+            <PoliticianCharacter
+              key={char.id}
+              data={char}
+              isSelected={selectedCharacterIds.has(char.id)}
+              onSelect={handleSelectCharacter}
+              onSelectAllSameType={handleSelectAllSameType}
+              monsters={monsters}
+              monsterPosRefs={monsterPosRefs.current}
+              onAttackMonster={handleAttackMonster}
+              onStateChange={handleStateChange}
+            />
+          ) : (
+            <Character
+              key={char.id}
+              data={char}
+              isSelected={selectedCharacterIds.has(char.id)}
+              onSelect={handleSelectCharacter}
+              onSelectAllSameType={handleSelectAllSameType}
+              monsters={monsters}
+              monsterPosRefs={monsterPosRefs.current}
+              onAttackMonster={handleAttackMonster}
+              onStateChange={handleStateChange}
+            />
+          )
         ))}
 
         {/* Move indicators */}
