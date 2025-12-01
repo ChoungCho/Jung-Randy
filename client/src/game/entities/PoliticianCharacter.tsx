@@ -1,4 +1,5 @@
-// ===== CHARACTER COMPONENT =====
+// ===== POLITICIAN CHARACTER COMPONENT =====
+// Uses dummy model for politician units (combination system)
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { useGLTF, Html } from '@react-three/drei';
@@ -6,8 +7,6 @@ import { SkeletonUtils } from 'three-stdlib';
 import * as THREE from 'three';
 import { CharacterData, MonsterData } from '../types';
 import {
-  CHARACTER1_SCALE,
-  CHARACTER2_SCALE,
   CHARACTER_SPEED,
   PLATFORM_SIZE,
   BOSS_PLATFORM_SIZE,
@@ -23,183 +22,127 @@ import { calculateDamage } from '../gameData';
 import { CircleLine } from '../components/CircleLine';
 import { TIER_COLORS, TIER_NAMES, PARTY_COLORS } from '../data/politicians';
 
-// Preload character GLBs
-useGLTF.preload('/assets/characters/char1_idle.glb');
-useGLTF.preload('/assets/characters/char1_run.glb');
-useGLTF.preload('/assets/characters/char1_punch.glb');
-useGLTF.preload('/assets/characters/char2_idle.glb');
-useGLTF.preload('/assets/characters/char2_run.glb');
-useGLTF.preload('/assets/characters/char2_punch.glb');
-// Skill animations
-useGLTF.preload('/assets/characters/skills/char1_chapa.glb');
-useGLTF.preload('/assets/characters/skills/char1_flying_kick.glb');
-useGLTF.preload('/assets/characters/skills/char2_jump_attack.glb');
+// Preload dummy character GLBs
+useGLTF.preload('/assets/characters/dummy_idle.glb');
+useGLTF.preload('/assets/characters/dummy_running.glb');
+useGLTF.preload('/assets/characters/dummy_punching.glb');
 
-interface CharacterProps {
+// Scale for dummy character
+const DUMMY_SCALE = 0.8;
+
+interface PoliticianCharacterProps {
   data: CharacterData;
   isSelected: boolean;
   onSelect: (id: string, addToSelection: boolean) => void;
-  onSelectAllSameType?: (type: 1 | 2) => void; // For double-click to select all same type
+  onSelectAllSameType?: (type: 1 | 2) => void;
   monsters: MonsterData[];
   monsterPosRefs: Map<string, THREE.Vector3>;
   onAttackMonster: (attackerId: string, monsterId: string, damage: number) => void;
   onStateChange: (charId: string, state: CharacterData['state']) => void;
 }
 
-export function Character({ data, isSelected, onSelect, onSelectAllSameType, monsters, monsterPosRefs, onAttackMonster, onStateChange }: CharacterProps) {
+export function PoliticianCharacter({
+  data,
+  isSelected,
+  onSelect,
+  onSelectAllSameType,
+  monsters,
+  monsterPosRefs,
+  onAttackMonster,
+  onStateChange
+}: PoliticianCharacterProps) {
   const groupRef = useRef<THREE.Group>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const actionRef = useRef<THREE.AnimationAction | null>(null);
-  const [currentState, setCurrentState] = useState<'idle' | 'running' | 'attacking' | 'passive_skill' | 'active_skill'>('idle');
+  const [currentState, setCurrentState] = useState<'idle' | 'running' | 'attacking'>('idle');
   const [inRange, setInRange] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const currentTargetRef = useRef<string | null>(null);
-  const aoeTargetsRef = useRef<string[]>([]);
   const pendingDamageMultiplierRef = useRef<number>(1.0);
-  const isPlayingSkillRef = useRef(false);
-  const cancelAttackRef = useRef(false);
-  const isAoESkillRef = useRef(false);
   const lastClickTimeRef = useRef<number>(0);
 
-  // Keep monsters in ref to avoid useEffect re-runs when monsters change
+  // Keep monsters in ref to avoid useEffect re-runs
   const monstersRef = useRef(monsters);
   monstersRef.current = monsters;
 
-  const prefix = data.type === 1 ? 'char1' : 'char2';
-  const { scene: idleScene, animations: idleAnims } = useGLTF(`/assets/characters/${prefix}_idle.glb`);
-  const { scene: runScene, animations: runAnims } = useGLTF(`/assets/characters/${prefix}_run.glb`);
-  const { scene: punchScene, animations: punchAnims } = useGLTF(`/assets/characters/${prefix}_punch.glb`);
+  // Load dummy models
+  const { scene: idleScene, animations: idleAnims } = useGLTF('/assets/characters/dummy_idle.glb');
+  const { scene: runScene, animations: runAnims } = useGLTF('/assets/characters/dummy_running.glb');
+  const { scene: punchScene, animations: punchAnims } = useGLTF('/assets/characters/dummy_punching.glb');
 
-  // Skill animations
-  const { scene: passiveScene, animations: passiveAnims } = useGLTF(
-    data.type === 1 ? '/assets/characters/skills/char1_chapa.glb' : '/assets/characters/skills/char2_jump_attack.glb'
-  );
-  const { scene: activeScene, animations: activeAnims } = useGLTF(
-    data.type === 1 ? '/assets/characters/skills/char1_flying_kick.glb' : '/assets/characters/skills/char2_jump_attack.glb'
-  );
-
+  // Clone scenes
   const clonedIdle = useMemo(() => {
     const clone = SkeletonUtils.clone(idleScene);
     clone.traverse(child => { child.matrixAutoUpdate = true; });
+
+    // Apply party color tint to the model
+    if (data.politician) {
+      clone.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          const material = child.material as THREE.MeshStandardMaterial;
+          if (material.color) {
+            const partyColor = new THREE.Color(PARTY_COLORS[data.politician!.party]);
+            // Blend with original color (30% party color)
+            material.color.lerp(partyColor, 0.3);
+          }
+        }
+      });
+    }
+
     return clone;
-  }, [idleScene]);
+  }, [idleScene, data.politician]);
 
   const clonedRun = useMemo(() => {
     const clone = SkeletonUtils.clone(runScene);
     clone.traverse(child => { child.matrixAutoUpdate = true; });
+
+    // Apply party color tint
+    if (data.politician) {
+      clone.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          const material = child.material as THREE.MeshStandardMaterial;
+          if (material.color) {
+            const partyColor = new THREE.Color(PARTY_COLORS[data.politician!.party]);
+            material.color.lerp(partyColor, 0.3);
+          }
+        }
+      });
+    }
+
     return clone;
-  }, [runScene]);
+  }, [runScene, data.politician]);
 
   const clonedPunch = useMemo(() => {
     const clone = SkeletonUtils.clone(punchScene);
     clone.traverse(child => { child.matrixAutoUpdate = true; });
-    return clone;
-  }, [punchScene]);
 
-  const clonedPassive = useMemo(() => {
-    const clone = SkeletonUtils.clone(passiveScene);
-    clone.traverse(child => { child.matrixAutoUpdate = true; });
-    return clone;
-  }, [passiveScene]);
+    // Apply party color tint
+    if (data.politician) {
+      clone.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          const material = child.material as THREE.MeshStandardMaterial;
+          if (material.color) {
+            const partyColor = new THREE.Color(PARTY_COLORS[data.politician!.party]);
+            material.color.lerp(partyColor, 0.3);
+          }
+        }
+      });
+    }
 
-  const clonedActive = useMemo(() => {
-    const clone = SkeletonUtils.clone(activeScene);
-    clone.traverse(child => { child.matrixAutoUpdate = true; });
     return clone;
-  }, [activeScene]);
+  }, [punchScene, data.politician]);
 
   const { scene: currentScene, anims: currentAnims } = useMemo(() => {
     switch (currentState) {
       case 'running': return { scene: clonedRun, anims: runAnims };
       case 'attacking': return { scene: clonedPunch, anims: punchAnims };
-      case 'passive_skill': return { scene: clonedPassive, anims: passiveAnims };
-      case 'active_skill': return { scene: clonedActive, anims: activeAnims };
       default: return { scene: clonedIdle, anims: idleAnims };
     }
-  }, [currentState, clonedIdle, clonedRun, clonedPunch, clonedPassive, clonedActive, idleAnims, runAnims, punchAnims, passiveAnims, activeAnims]);
+  }, [currentState, clonedIdle, clonedRun, clonedPunch, idleAnims, runAnims, punchAnims]);
 
-  // Handle external state changes (e.g., active skill button press)
-  const activeSkillStartedRef = useRef(false);
-
-  useEffect(() => {
-    if (data.state !== 'active_skill') {
-      activeSkillStartedRef.current = false;
-      return;
-    }
-
-    if (activeSkillStartedRef.current) return;
-    if (currentState === 'active_skill') return;
-
-    activeSkillStartedRef.current = true;
-
-    isPlayingSkillRef.current = true;
-    cancelAttackRef.current = false;
-
-    const activeSkill = data.stats.skills.active;
-    const isAoE = activeSkill?.isAoE || false;
-    isAoESkillRef.current = isAoE;
-    aoeTargetsRef.current = [];
-
-    // Find monsters for active skill targeting (within skill range)
-    if (groupRef.current) {
-      const currentPos = groupRef.current.position;
-      const skillRange = activeSkill?.range || 5.0;
-      const monstersInRange: { id: string; pos: THREE.Vector3; dist: number }[] = [];
-
-      for (const monster of monsters) {
-        if (monster.isDying) continue;
-        const monsterPos = monsterPosRefs.get(monster.id);
-        if (!monsterPos) continue;
-
-        const dist = currentPos.distanceTo(monsterPos);
-        if (dist <= skillRange) {
-          monstersInRange.push({ id: monster.id, pos: monsterPos, dist });
-        }
-      }
-
-      if (monstersInRange.length > 0) {
-        monstersInRange.sort((a, b) => a.dist - b.dist);
-        const nearest = monstersInRange[0];
-
-        if (isAoE) {
-          aoeTargetsRef.current = monstersInRange.map(m => m.id);
-          currentTargetRef.current = nearest.id;
-        } else {
-          currentTargetRef.current = nearest.id;
-        }
-
-        pendingDamageMultiplierRef.current = activeSkill?.damageMultiplier || 1.0;
-
-        const dir = new THREE.Vector3().subVectors(nearest.pos, currentPos);
-        groupRef.current.rotation.y = Math.atan2(dir.x, dir.z);
-      } else {
-        currentTargetRef.current = null;
-        aoeTargetsRef.current = [];
-      }
-    }
-    setCurrentState('active_skill');
-  }, [data.state, currentState, monsters, monsterPosRefs, data.stats.skills.active]);
-
-  // Handle cancel attack request (from right-click move command)
-  useEffect(() => {
-    if (data.targetPosition && (currentState === 'attacking' || currentState === 'passive_skill')) {
-      cancelAttackRef.current = true;
-      isPlayingSkillRef.current = false;
-      pendingDamageMultiplierRef.current = 1.0;
-
-      if (actionRef.current) {
-        actionRef.current.stop();
-      }
-
-      setCurrentState('running');
-      onStateChange(data.id, 'running');
-    }
-  }, [data.targetPosition, currentState, data.id, onStateChange]);
-
+  // Animation setup
   useEffect(() => {
     if (currentAnims.length === 0) return;
-
-    cancelAttackRef.current = false;
 
     const mixer = new THREE.AnimationMixer(currentScene);
     mixerRef.current = mixer;
@@ -208,24 +151,10 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
     const action = mixer.clipAction(clip);
     actionRef.current = action;
 
-    const isAttackState = currentState === 'attacking' || currentState === 'passive_skill' || currentState === 'active_skill';
+    const isAttackState = currentState === 'attacking';
 
     const onFinished = () => {
-      if (cancelAttackRef.current) {
-        cancelAttackRef.current = false;
-        return;
-      }
-
-      if (isAoESkillRef.current && aoeTargetsRef.current.length > 0) {
-        for (const targetId of aoeTargetsRef.current) {
-          const targetMonster = monstersRef.current.find(m => m.id === targetId && !m.isDying);
-          if (targetMonster) {
-            const damage = calculateDamage(data.stats.attack, targetMonster.defense, pendingDamageMultiplierRef.current);
-            onAttackMonster(data.id, targetId, damage);
-          }
-        }
-        aoeTargetsRef.current = [];
-      } else if (currentTargetRef.current) {
+      if (currentTargetRef.current) {
         const targetMonster = monstersRef.current.find(m => m.id === currentTargetRef.current && !m.isDying);
         if (targetMonster) {
           const damage = calculateDamage(data.stats.attack, targetMonster.defense, pendingDamageMultiplierRef.current);
@@ -233,8 +162,6 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
         }
       }
       pendingDamageMultiplierRef.current = 1.0;
-      isPlayingSkillRef.current = false;
-      isAoESkillRef.current = false;
       setCurrentState('idle');
       onStateChange(data.id, 'idle');
     };
@@ -243,15 +170,9 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
       action.setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;
 
-      if (currentState === 'attacking') {
-        const effectiveAttackSpeed = data.stats.attackSpeed * GLOBAL_ATTACK_SPEED_MULTIPLIER;
-        const targetDuration = (1 / effectiveAttackSpeed) * ATTACK_ANIMATION_DURATION_FACTOR;
-        action.timeScale = clip.duration / targetDuration;
-      } else if (currentState === 'active_skill') {
-        action.timeScale = 2.0;
-      } else {
-        action.timeScale = 1.5;
-      }
+      const effectiveAttackSpeed = data.stats.attackSpeed * GLOBAL_ATTACK_SPEED_MULTIPLIER;
+      const targetDuration = (1 / effectiveAttackSpeed) * ATTACK_ANIMATION_DURATION_FACTOR;
+      action.timeScale = clip.duration / targetDuration;
 
       mixer.addEventListener('finished', onFinished);
     } else {
@@ -272,10 +193,9 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
     };
   }, [currentState, currentScene, currentAnims, onAttackMonster, data.stats.attackSpeed, data.stats.attack, data.id, onStateChange]);
 
+  // Movement and attack logic
   useFrame((_, delta) => {
-    // Clamp delta to prevent large jumps when browser is in background
-    // This prevents characters from teleporting when the tab is inactive
-    const MAX_DELTA = 0.1; // Maximum 100ms per frame
+    const MAX_DELTA = 0.1;
     const clampedDelta = Math.min(delta, MAX_DELTA);
 
     if (mixerRef.current) {
@@ -285,7 +205,7 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
     if (!groupRef.current) return;
 
     const currentPos = groupRef.current.position;
-    const isAttacking = currentState === 'attacking' || currentState === 'passive_skill' || currentState === 'active_skill';
+    const isAttacking = currentState === 'attacking';
 
     // Movement logic
     if (data.targetPosition && !isAttacking) {
@@ -342,14 +262,12 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
             currentPos.y = 0;
           }
           data.position.copy(currentPos);
-          // Only change to idle if not attacking
           if (currentState === 'running') {
             setCurrentState('idle');
           }
         }
       }
     } else if (!data.targetPosition && data.waypointQueue.length === 0 && currentState === 'running') {
-      // If stopped (no target and no waypoints), change to idle
       setCurrentState('idle');
     }
 
@@ -371,8 +289,8 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
     const isInRange = nearestMonster !== null;
     setInRange(isInRange);
 
-    // Only trigger attack if not already attacking AND not protected by skill lock AND no active move command
-    if (isInRange && !isAttacking && !isPlayingSkillRef.current && !data.targetPosition) {
+    // Trigger attack
+    if (isInRange && !isAttacking && !data.targetPosition) {
       const now = Date.now();
       const effectiveAttackSpeed = data.stats.attackSpeed * GLOBAL_ATTACK_SPEED_MULTIPLIER;
       const attackCooldown = 1000 / effectiveAttackSpeed;
@@ -380,18 +298,9 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
         data.targetPosition = null;
         data.lastAttackTime = now;
         currentTargetRef.current = nearestMonster!.id;
-
-        const passiveSkill = data.stats.skills.passive;
-        if (passiveSkill && Math.random() < passiveSkill.triggerChance) {
-          isPlayingSkillRef.current = true;
-          pendingDamageMultiplierRef.current = passiveSkill.damageMultiplier;
-          setCurrentState('passive_skill');
-          onStateChange(data.id, 'passive_skill');
-        } else {
-          pendingDamageMultiplierRef.current = 1.0;
-          setCurrentState('attacking');
-          onStateChange(data.id, 'attacking');
-        }
+        pendingDamageMultiplierRef.current = 1.0;
+        setCurrentState('attacking');
+        onStateChange(data.id, 'attacking');
 
         const dir = new THREE.Vector3().subVectors(nearestMonster!.pos, currentPos);
         groupRef.current.rotation.y = Math.atan2(dir.x, dir.z);
@@ -399,17 +308,22 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
     }
   });
 
-  const charScale = data.type === 1 ? CHARACTER1_SCALE : CHARACTER2_SCALE;
+  const charScale = DUMMY_SCALE;
   const attackRingRadius = data.stats.attackRange / charScale;
   const selectionRingRadius = 0.6 / charScale;
   const hitboxRadius = 0.85 / charScale;
-  const skillRingRadius = (data.stats.skills.active?.range || 5.0) / charScale;
 
   const getRingColor = () => {
-    if (currentState === 'passive_skill') return '#aa00ff';
-    if (currentState === 'active_skill') return '#ff6600';
     if (inRange) return '#ff0000';
     return '#ffff00';
+  };
+
+  // Get party-specific selection color
+  const getSelectionColor = () => {
+    if (data.politician) {
+      return PARTY_COLORS[data.politician.party];
+    }
+    return '#00ff00';
   };
 
   return (
@@ -418,7 +332,7 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
       position={[data.position.x, data.position.y, data.position.z]}
       scale={[charScale, charScale, charScale]}
     >
-      {/* Hitbox helper ring - appears on hover to guide selection */}
+      {/* Hitbox helper ring */}
       <mesh
         position={[0, 0.01, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -463,29 +377,20 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
         onClick={(e: ThreeEvent<MouseEvent>) => e.stopPropagation()}
       />
 
-      {/* Selection indicator - solid circle under character */}
+      {/* Selection indicator with party color */}
       {isSelected && (
         <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[selectionRingRadius, 32]} />
-          <meshBasicMaterial color="#00ff00" transparent opacity={0.4} depthTest={false} />
+          <meshBasicMaterial color={getSelectionColor()} transparent opacity={0.5} depthTest={false} />
         </mesh>
       )}
 
-      {/* Attack range ring - color changes based on state */}
+      {/* Attack range ring */}
       <CircleLine
         radius={attackRingRadius}
         color={getRingColor()}
         opacity={0.8}
       />
-
-      {/* Active skill range ring - only shown when selected */}
-      {isSelected && data.stats.skills.active && (
-        <CircleLine
-          radius={skillRingRadius}
-          color="#ff6600"
-          opacity={0.4}
-        />
-      )}
 
       {/* Name and tier label for politician units */}
       {data.politician && (

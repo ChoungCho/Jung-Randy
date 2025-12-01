@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { Platform } from './terrain';
 
 // Entities
-import { Character, Monster } from './entities';
+import { Character, PoliticianCharacter, Monster } from './entities';
 
 // Components
 import { MoveIndicator } from './components';
@@ -29,7 +29,7 @@ import {
 } from './ui';
 
 // Chat
-import { ChatBox } from '../chat';
+import { WarcraftChatBox } from '../chat';
 
 // Buildings
 import { BuildingType } from './buildings';
@@ -84,6 +84,8 @@ export default function GameScene() {
     setSelectionBox,
     moveIndicators,
     spawnCharacter,
+    spawnPolitician,
+    executeCombine,
     handleSelectCharacter,
     handleSelectSingleCharacter,
     handleSelectAllSameType,
@@ -101,9 +103,8 @@ export default function GameScene() {
   const {
     gameState,
     currentWave,
-    monstersSpawnedInWave,
-    monstersKilledInWave,
     totalMonstersKilled,
+    waveTimeLeftMs,
     monsters,
     monsterPosRefs,
     handleMonsterDeath,
@@ -114,7 +115,15 @@ export default function GameScene() {
   // Sync selection target with selectedCharacterIds
   useEffect(() => {
     if (selectedCharacterIds.size > 0) {
-      setSelectionTarget({ type: 'character', ids: Array.from(selectedCharacterIds) });
+      const ids = Array.from(selectedCharacterIds);
+      const isSame =
+        selectionTarget?.type === 'character' &&
+        selectionTarget.ids.length === ids.length &&
+        selectionTarget.ids.every(id => ids.includes(id));
+
+      if (!isSame) {
+        setSelectionTarget({ type: 'character', ids });
+      }
     } else if (selectionTarget?.type === 'character') {
       setSelectionTarget(null);
     }
@@ -136,8 +145,8 @@ export default function GameScene() {
       {/* Top UI - Wave Info */}
       <WaveInfo
         currentWave={currentWave}
-        monstersKilledInWave={monstersKilledInWave}
-        monstersSpawnedInWave={monstersSpawnedInWave}
+        waveTimeLeftMs={waveTimeLeftMs}
+        monstersAlive={monsters.length}
       />
 
       {/* Left UI Panel */}
@@ -151,6 +160,7 @@ export default function GameScene() {
       <SpawnButton
         spawnCount={spawnCount}
         onSpawn={spawnCharacter}
+        onSpawnPolitician={spawnPolitician}
       />
 
       {/* Status Panel */}
@@ -160,6 +170,7 @@ export default function GameScene() {
         monsters={monsters}
         onUseActiveSkill={handleUseActiveSkill}
         onSelectCharacter={handleSelectSingleCharacter}
+        onCombine={executeCombine}
         selectedBuilding={selectedBuilding}
       />
 
@@ -194,8 +205,8 @@ export default function GameScene() {
         onClose={() => setIsRecipePanelOpen(false)}
       />
 
-      {/* Chat Box */}
-      <ChatBox
+      {/* Chat - Warcraft 스타일 고정 */}
+      <WarcraftChatBox
         onSendMessage={(message) => {
           console.log('Chat message:', message);
           // TODO: Implement chat message handling (e.g., send to server, display in game)
@@ -241,17 +252,31 @@ export default function GameScene() {
 
         {/* Render all characters */}
         {characters.map(char => (
-          <Character
-            key={char.id}
-            data={char}
-            isSelected={selectedCharacterIds.has(char.id)}
-            onSelect={handleSelectCharacter}
-            onSelectAllSameType={handleSelectAllSameType}
-            monsters={monsters}
-            monsterPosRefs={monsterPosRefs.current}
-            onAttackMonster={handleAttackMonster}
-            onStateChange={handleStateChange}
-          />
+          char.politician ? (
+            <PoliticianCharacter
+              key={char.id}
+              data={char}
+              isSelected={selectedCharacterIds.has(char.id)}
+              onSelect={handleSelectCharacter}
+              onSelectAllSameType={handleSelectAllSameType}
+              monsters={monsters}
+              monsterPosRefs={monsterPosRefs.current}
+              onAttackMonster={handleAttackMonster}
+              onStateChange={handleStateChange}
+            />
+          ) : (
+            <Character
+              key={char.id}
+              data={char}
+              isSelected={selectedCharacterIds.has(char.id)}
+              onSelect={handleSelectCharacter}
+              onSelectAllSameType={handleSelectAllSameType}
+              monsters={monsters}
+              monsterPosRefs={monsterPosRefs.current}
+              onAttackMonster={handleAttackMonster}
+              onStateChange={handleStateChange}
+            />
+          )
         ))}
 
         {/* Move indicators */}
