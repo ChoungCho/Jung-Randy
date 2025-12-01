@@ -311,8 +311,8 @@ export function PoliticianCharacter({
   const charScale = DUMMY_SCALE;
   const attackRingRadius = data.stats.attackRange / charScale;
   const selectionRingRadius = 0.6 / charScale;
-  const hitboxRadius = 1.1 / charScale;
-  const hitboxHeight = 2.2 / charScale;
+  const hitboxRadius = 0.3 / charScale;
+  const hitboxHeight = 1.0 / charScale;
 
   const getRingColor = () => {
     if (inRange) return '#ff0000';

@@ -164,6 +164,8 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
 
   // Execute combination: remove material characters and spawn result
   const executeCombine = useCallback((_option: CombinationOption, materialCharIds: string[]) => {
+    const prevSelectedIds = new Set(selectedCharacterIds);
+
     // Get material politician IDs from characters
     const materialPoliticianIds: string[] = [];
     const charsToRemove = new Set(materialCharIds);
@@ -185,9 +187,17 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
     // Remove material characters
     setCharacters(prev => prev.filter(c => !charsToRemove.has(c.id)));
 
-    // Clear selection
-    setSelectedCharacterIds(new Set());
-    setSelectionTarget(null);
+    // Preserve selection for remaining units (including the one currently viewed if it wasn't consumed)
+    const remainingSelected = new Set(
+      Array.from(prevSelectedIds).filter(id => !charsToRemove.has(id))
+    );
+    const selectedWasConsumed = remainingSelected.size === 0 && prevSelectedIds.size > 0;
+    setSelectedCharacterIds(remainingSelected);
+    setSelectionTarget(
+      remainingSelected.size > 0
+        ? { type: 'character', ids: Array.from(remainingSelected) }
+        : null
+    );
 
     // Spawn the result politician
     const stats: CharacterStats = {
@@ -242,10 +252,16 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
     // Add the new character after a small delay for visual effect
     setTimeout(() => {
       setCharacters(prev => [...prev, newChar]);
+
+      // If selection was fully consumed, auto-select the new combined unit
+      if (selectedWasConsumed) {
+        setSelectedCharacterIds(new Set([newChar.id]));
+        setSelectionTarget({ type: 'character', ids: [newChar.id] });
+      }
     }, 100);
 
     setSpawnCount(prev => prev + 1);
-  }, [characters]);
+  }, [characters, selectedCharacterIds]);
 
   // Select character
   const handleSelectCharacter = useCallback((id: string, addToSelection: boolean) => {

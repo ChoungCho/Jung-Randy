@@ -402,8 +402,8 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
   const charScale = data.type === 1 ? CHARACTER1_SCALE : CHARACTER2_SCALE;
   const attackRingRadius = data.stats.attackRange / charScale;
   const selectionRingRadius = 0.6 / charScale;
-  const hitboxRadius = 1.1 / charScale;
-  const hitboxHeight = 2.2 / charScale;
+  const hitboxRadius = 0.3 / charScale;
+  const hitboxHeight = 1.0 / charScale;
   const skillRingRadius = (data.stats.skills.active?.range || 5.0) / charScale;
 
   const getRingColor = () => {
