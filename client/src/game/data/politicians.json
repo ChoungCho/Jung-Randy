@@ -41,23 +41,19 @@
       { "id": "park_jumin", "name": "박주민", "terms": 3, "committee": "법사위", "role": "debuffer", "attack": 16, "defense": 12, "hp": 80, "description": "3선 의원. 법제사법위원회 소속.", "color": "#2563EB", "hasSkill": false },
       { "id": "park_jung", "name": "박정", "terms": 3, "committee": "환노위", "role": "buffer", "attack": 13, "defense": 14, "hp": 88, "description": "3선 의원. 환경노동위원회 소속.", "color": "#3B82F6", "hasSkill": false },
       { "id": "park_chandae", "name": "박찬대", "terms": 2, "committee": "국회부의장", "role": "buffer", "attack": 14, "defense": 14, "hp": 88, "description": "2선 의원. 국회 부의장.", "color": "#60A5FA", "hasSkill": false },
-      { "id": "baek_hyeryun", "name": "백혜련", "terms": 3, "committee": "법사위", "role": "debuffer", "attack": 15, "defense": 12, "hp": 82, "description": "3선 의원. 법제사법위원회 소속.", "color": "#93C5FD", "hasSkill": false },
       { "id": "seo_samseok", "name": "서삼석", "terms": 3, "committee": "농해수위", "role": "economy", "attack": 12, "defense": 15, "hp": 92, "description": "3선 의원. 농림축산식품해양수산위원회 소속.", "color": "#1E3A8A", "hasSkill": false }
     ],
     "kuk": [
-      { "id": "kim_seokki", "name": "김석기", "terms": 3, "committee": "국방위", "role": "line_dps", "attack": 17, "defense": 11, "hp": 78, "description": "3선 의원. 국방위원회 소속.", "color": "#DC2626", "hasSkill": false },
-      { "id": "kim_sungwon", "name": "김성원", "terms": 3, "committee": "기재위", "role": "economy", "attack": 14, "defense": 13, "hp": 85, "description": "3선 의원. 기획재정위원회 소속.", "color": "#B91C1C", "hasSkill": false },
-      { "id": "kim_heejung", "name": "김희정", "terms": 2, "committee": "여가위", "role": "buffer", "attack": 13, "defense": 14, "hp": 88, "description": "2선 의원. 여성가족위원회 소속.", "color": "#F87171", "hasSkill": false },
-      { "id": "kim_jungjae", "name": "김정재", "terms": 3, "committee": "산자중기위", "role": "economy", "attack": 15, "defense": 12, "hp": 82, "description": "3선 의원. 산업통상자원중소벤처기업위원회 소속.", "color": "#EF4444", "hasSkill": false },
-      { "id": "song_seokjun", "name": "송석준", "terms": 3, "committee": "국토위", "role": "line_dps", "attack": 16, "defense": 11, "hp": 76, "description": "3선 의원. 국토교통위원회 소속.", "color": "#DC2626", "hasSkill": false },
-      { "id": "shin_sungbeom", "name": "신성범", "terms": 2, "committee": "국방위", "role": "line_dps", "attack": 18, "defense": 9, "hp": 70, "description": "2선 의원. 국방위원회 소속.", "color": "#B91C1C", "hasSkill": false },
-      { "id": "sung_iljong", "name": "성일종", "terms": 3, "committee": "기재위", "role": "economy", "attack": 14, "defense": 14, "hp": 86, "description": "3선 의원. 기획재정위원회 소속.", "color": "#F87171", "hasSkill": false },
-      { "id": "yoon_hanhong", "name": "윤한홍", "terms": 3, "committee": "산자중기위", "role": "economy", "attack": 15, "defense": 13, "hp": 84, "description": "3선 의원. 산업통상자원중소벤처기업위원회 소속.", "color": "#EF4444", "hasSkill": false },
-      { "id": "im_ija", "name": "임이자", "terms": 3, "committee": "환노위", "role": "buffer", "attack": 12, "defense": 15, "hp": 92, "description": "3선 의원. 환경노동위원회 소속.", "color": "#DC2626", "hasSkill": false },
-      { "id": "jang_donghyuk", "name": "장동혁", "terms": 2, "committee": "법사위", "role": "debuffer", "attack": 16, "defense": 11, "hp": 78, "description": "2선 의원. 법제사법위원회 소속.", "color": "#B91C1C", "hasSkill": false },
-      { "id": "jung_chunsook", "name": "정춘숙", "terms": 3, "committee": "복지위", "role": "buffer", "attack": 11, "defense": 16, "hp": 98, "description": "3선 의원. 보건복지위원회 소속.", "color": "#F87171", "hasSkill": false },
-      { "id": "choi_hyungjae", "name": "최형재", "terms": 2, "committee": "교육위", "role": "buffer", "attack": 13, "defense": 14, "hp": 88, "description": "2선 의원. 교육위원회 소속.", "color": "#EF4444", "hasSkill": false },
-      { "id": "lee_manhee", "name": "이만희", "terms": 3, "committee": "행안위", "role": "hold", "attack": 10, "defense": 18, "hp": 105, "description": "3선 의원. 행정안전위원회 소속.", "color": "#DC2626", "hasSkill": false }
+      { "id": "kim_seokki", "name": "김석기", "terms": 3, "committee": "외통위", "role": "line_dps", "attack": 17, "defense": 11, "hp": 78, "description": "3선 의원. 외교통일위원회 소속.", "color": "#DC2626", "hasSkill": false },
+      { "id": "kim_sungwon", "name": "김성원", "terms": 3, "committee": "산자중기위", "role": "economy", "attack": 14, "defense": 13, "hp": 85, "description": "3선 의원. 산업통상자원중소벤처기업위원회 소속.", "color": "#B91C1C", "hasSkill": false },
+      { "id": "kim_jungjae", "name": "김정재", "terms": 3, "committee": "국토위", "role": "economy", "attack": 15, "defense": 12, "hp": 82, "description": "3선 의원. 국토교통위원회 소속.", "color": "#EF4444", "hasSkill": false },
+      { "id": "kim_heejung", "name": "김희정", "terms": 3, "committee": "국토위", "role": "buffer", "attack": 13, "defense": 14, "hp": 88, "description": "3선 의원. 국토교통위원회 소속.", "color": "#F87171", "hasSkill": false },
+      { "id": "sung_iljong", "name": "성일종", "terms": 3, "committee": "국방위", "role": "line_dps", "attack": 14, "defense": 14, "hp": 86, "description": "3선 의원. 국방위원회 소속.", "color": "#F87171", "hasSkill": false },
+      { "id": "song_seokjun", "name": "송석준", "terms": 3, "committee": "법사위", "role": "debuffer", "attack": 16, "defense": 11, "hp": 76, "description": "3선 의원. 법제사법위원회 소속.", "color": "#DC2626", "hasSkill": false },
+      { "id": "shin_sungbeom", "name": "신성범", "terms": 3, "committee": "과방위·정보위", "role": "line_dps", "attack": 18, "defense": 9, "hp": 70, "description": "3선 의원. 과학기술정보방송통신위원회·정보위원회 소속.", "color": "#B91C1C", "hasSkill": false },
+      { "id": "yoon_hanhong", "name": "윤한홍", "terms": 3, "committee": "정무위", "role": "buffer", "attack": 15, "defense": 13, "hp": 84, "description": "3선 의원. 정무위원회 소속.", "color": "#EF4444", "hasSkill": false },
+      { "id": "lee_manhee", "name": "이만희", "terms": 3, "committee": "농해수위", "role": "hold", "attack": 10, "defense": 18, "hp": 105, "description": "3선 의원. 농림축산식품해양수산위원회 소속.", "color": "#DC2626", "hasSkill": false },
+      { "id": "im_ija", "name": "임이자", "terms": 3, "committee": "기재위", "role": "economy", "attack": 12, "defense": 15, "hp": 92, "description": "3선 의원. 기획재정위원회 소속.", "color": "#DC2626", "hasSkill": false }
     ]
   },
   "lv3": {
