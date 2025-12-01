@@ -25,6 +25,7 @@ const LV2_TO_LV3_RECIPES = ALL_RECIPES.filter(r => r.result !== 'random_lv2');
 interface RecipePanelProps {
   isOpen: boolean;
   onClose: () => void;
+  ownedPoliticianIds: Set<string>;
 }
 
 // Politician card component
@@ -32,10 +33,12 @@ function PoliticianCard({
   politician,
   size = 'normal',
   onClick,
+  owned = true,
 }: {
   politician: Politician;
   size?: 'small' | 'normal' | 'large';
   onClick?: () => void;
+  owned?: boolean;
 }) {
   const sizeStyles = {
     small: { width: 55, height: 75, fontSize: 9, iconSize: 28 },
@@ -62,6 +65,8 @@ function PoliticianCard({
         transition: 'transform 0.2s, box-shadow 0.2s',
         boxShadow: `0 0 10px ${TIER_COLORS[politician.tier]}40`,
         position: 'relative',
+        opacity: owned ? 1 : 0.4,
+        filter: owned ? 'none' : 'grayscale(1)',
       }}
       onMouseEnter={(e) => {
         if (onClick) {
@@ -140,9 +145,11 @@ function PoliticianCard({
 function RecipeRow({
   recipe,
   onPoliticianClick,
+  ownedPoliticianIds,
 }: {
   recipe: PoliticianRecipe;
   onPoliticianClick: (pol: Politician) => void;
+  ownedPoliticianIds: Set<string>;
 }) {
   const materials = recipe.materials.map(id => getPoliticianById(id)!).filter(Boolean);
 
@@ -161,6 +168,8 @@ function RecipeRow({
         padding: '6px 8px',
         backgroundColor: 'rgba(0, 0, 0, 0.3)',
         borderRadius: 8,
+        position: 'relative',
+        zIndex: 0, // keep rows below popups/tooltips
       }}
     >
       {/* Materials */}
@@ -169,6 +178,7 @@ function RecipeRow({
           <PoliticianCard
             politician={mat}
             size="small"
+            owned={ownedPoliticianIds.has(mat.id)}
             onClick={() => onPoliticianClick(mat)}
           />
           {idx < materials.length - 1 && (
@@ -205,6 +215,7 @@ function RecipeRow({
         <PoliticianCard
           politician={result}
           size="normal"
+          owned={ownedPoliticianIds.has(result.id)}
           onClick={() => onPoliticianClick(result)}
         />
       ) : null}
@@ -232,7 +243,7 @@ function PoliticianDetail({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1001,
+        zIndex: 3001,
       }}
       onClick={onClose}
     >
@@ -413,7 +424,7 @@ function PoliticianDetail({
 }
 
 // Main RecipePanel component
-export function RecipePanel({ isOpen, onClose }: RecipePanelProps) {
+export function RecipePanel({ isOpen, onClose, ownedPoliticianIds }: RecipePanelProps) {
   const [selectedTier, setSelectedTier] = useState<PoliticianTier | 'all'>('all');
   const [selectedPolitician, setSelectedPolitician] = useState<Politician | null>(null);
 
@@ -451,7 +462,7 @@ export function RecipePanel({ isOpen, onClose }: RecipePanelProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000,
+          zIndex: 3000, // keep above in-game nametags
         }}
         onClick={onClose}
       >
@@ -586,6 +597,7 @@ export function RecipePanel({ isOpen, onClose }: RecipePanelProps) {
                         <RecipeRow
                           key={recipe.id}
                           recipe={recipe}
+                          ownedPoliticianIds={ownedPoliticianIds}
                           onPoliticianClick={setSelectedPolitician}
                         />
                       ))}
@@ -613,6 +625,7 @@ export function RecipePanel({ isOpen, onClose }: RecipePanelProps) {
                         <RecipeRow
                           key={recipe.id}
                           recipe={recipe}
+                          ownedPoliticianIds={ownedPoliticianIds}
                           onPoliticianClick={setSelectedPolitician}
                         />
                       ))}

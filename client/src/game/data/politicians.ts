@@ -360,14 +360,18 @@ export function checkMaterialAvailability(
       ? matchingChars.length + 1
       : matchingChars.length;
 
+    // Prefer using other units first; fall back to the selected unit only if needed
+    const orderedIds = [...matchingChars.map(c => c.id)];
+    if (selectedIsSameMaterial && orderedIds.length < req.count) {
+      orderedIds.push(excludeCharacterId!);
+    }
+
     const availability: MaterialAvailability = {
       politicianId: req.politicianId,
       name: politician?.name || req.politicianId,
       required: req.count,
       available: availableCount,
-      characterIds: selectedIsSameMaterial
-        ? [excludeCharacterId!, ...matchingChars.map(c => c.id)].slice(0, req.count)
-        : matchingChars.map(c => c.id).slice(0, req.count),
+      characterIds: orderedIds.slice(0, req.count),
     };
 
     materials.push(availability);
