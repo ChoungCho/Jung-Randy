@@ -1,6 +1,6 @@
 // ===== MAIN GAME SCENE =====
 // Modular entry point - all logic is split into separate modules
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
@@ -112,6 +112,15 @@ export default function GameScene() {
     handleRestart,
   } = useWaveSystem(selectionTarget, setSelectionTarget);
 
+  // Track owned politician ids (for recipe availability UI)
+  const ownedPoliticianIds = useMemo(() => {
+    const ids = new Set<string>();
+    characters.forEach(char => {
+      if (char.politician) ids.add(char.politician.id);
+    });
+    return ids;
+  }, [characters]);
+
   // Sync selection target with selectedCharacterIds
   useEffect(() => {
     if (selectedCharacterIds.size > 0) {
@@ -202,6 +211,7 @@ export default function GameScene() {
       {/* Recipe Panel */}
       <RecipePanel
         isOpen={isRecipePanelOpen}
+        ownedPoliticianIds={ownedPoliticianIds}
         onClose={() => setIsRecipePanelOpen(false)}
       />
 
