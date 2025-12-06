@@ -1,16 +1,21 @@
 // ===== BUILDING PANEL UI =====
 // Shows different panels based on selected building type
+// Rebranded: 공천위원회 (Gacha), 정치스쿨 (Upgrade), 출마 캠프 (Quest)
 
 import { useState } from 'react';
 import { BuildingType, BUILDINGS } from '../buildings/types';
 import {
-  DUMMY_CHARACTERS,
-  RARITY_COLORS,
-  RARITY_BG_COLORS,
-  getCharactersByRarity,
-  type DummyCharacter,
-} from '../data/dummyCharacters';
-import { CharacterPreview } from './CharacterPreview';
+  LV2_POLITICIANS,
+  LV3_POLITICIANS,
+  LV4_POLITICIANS,
+  TIER_COLORS,
+  TIER_BG_COLORS,
+  TIER_NAMES,
+  PARTY_COLORS,
+  PARTY_NAMES,
+  type Politician,
+  type PoliticianTier,
+} from '../data/politicians';
 
 interface BuildingPanelProps {
   selectedBuilding: BuildingType | null;
@@ -29,7 +34,7 @@ export function BuildingPanel({ selectedBuilding, onClose }: BuildingPanelProps)
         bottom: 0,
         left: 0,
         right: 0,
-        height: 280,
+        height: 320,
         backgroundColor: 'rgba(20, 20, 40, 0.95)',
         borderTop: '2px solid #444',
         display: 'flex',
@@ -80,118 +85,200 @@ export function BuildingPanel({ selectedBuilding, onClose }: BuildingPanelProps)
   );
 }
 
-// ===== GACHA CONTENT =====
+// ===== GACHA CONTENT - 공천위원회 =====
+// Tier-based politician gacha: Lv2, Lv3, Lv4
+type GachaTier = 'lv2' | 'lv3' | 'lv4';
+
+const GACHA_CONFIG: Record<GachaTier, { pool: Politician[]; cost: number; label: string; icon: string; color: string }> = {
+  lv2: {
+    pool: LV2_POLITICIANS,
+    cost: 200,
+    label: '일반의원 공천',
+    icon: '🔷',
+    color: TIER_COLORS.lv2,
+  },
+  lv3: {
+    pool: LV3_POLITICIANS,
+    cost: 500,
+    label: '핵심중진 공천',
+    icon: '🔮',
+    color: TIER_COLORS.lv3,
+  },
+  lv4: {
+    pool: LV4_POLITICIANS,
+    cost: 1200,
+    label: '원외거물 공천',
+    icon: '⭐',
+    color: TIER_COLORS.lv4,
+  },
+};
+
 function GachaContent() {
-  const [lastPull, setLastPull] = useState<DummyCharacter | null>(null);
+  const [selectedTier, setSelectedTier] = useState<GachaTier>('lv2');
+  const [lastPull, setLastPull] = useState<Politician | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const handlePull = (_cost: number, rarity: 'common' | 'rare') => {
+  const handlePull = () => {
+    const config = GACHA_CONFIG[selectedTier];
     setIsAnimating(true);
     setLastPull(null);
 
-    // Simulate pull animation
+    // Simulate gacha animation
     setTimeout(() => {
-      const pool = rarity === 'common'
-        ? [...getCharactersByRarity('common'), ...getCharactersByRarity('uncommon')]
-        : [...getCharactersByRarity('rare'), ...getCharactersByRarity('epic')];
-
-      const result = pool[Math.floor(Math.random() * pool.length)];
+      const result = config.pool[Math.floor(Math.random() * config.pool.length)];
       setLastPull(result);
       setIsAnimating(false);
-    }, 1000);
+    }, 1200);
   };
+
+  const config = GACHA_CONFIG[selectedTier];
 
   return (
     <div style={{ display: 'flex', gap: 20, height: '100%' }}>
-      {/* Pull buttons */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <button
-          onClick={() => handlePull(100, 'common')}
-          disabled={isAnimating}
-          style={{
-            padding: '16px 32px',
-            backgroundColor: isAnimating ? '#444' : '#4a90d9',
-            border: 'none',
-            borderRadius: 8,
-            color: '#fff',
-            fontWeight: 'bold',
-            fontSize: 14,
-            cursor: isAnimating ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s',
-          }}
-        >
-          🎲 일반 뽑기
-          <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>100 골드</div>
-        </button>
-
-        <button
-          onClick={() => handlePull(500, 'rare')}
-          disabled={isAnimating}
-          style={{
-            padding: '16px 32px',
-            backgroundColor: isAnimating ? '#444' : '#9932cc',
-            border: 'none',
-            borderRadius: 8,
-            color: '#fff',
-            fontWeight: 'bold',
-            fontSize: 14,
-            cursor: isAnimating ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s',
-          }}
-        >
-          ✨ 고급 뽑기
-          <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>500 골드</div>
-        </button>
+      {/* Tier selection tabs */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 160 }}>
+        <div style={{ color: '#aaa', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>
+          📋 공천 심사
+        </div>
+        {(Object.keys(GACHA_CONFIG) as GachaTier[]).map((tier) => {
+          const tierConfig = GACHA_CONFIG[tier];
+          const isSelected = selectedTier === tier;
+          return (
+            <button
+              key={tier}
+              onClick={() => setSelectedTier(tier)}
+              disabled={isAnimating}
+              style={{
+                padding: '12px 16px',
+                backgroundColor: isSelected ? tierConfig.color : 'rgba(50, 50, 70, 0.8)',
+                border: `2px solid ${isSelected ? tierConfig.color : '#444'}`,
+                borderRadius: 8,
+                color: '#fff',
+                fontWeight: isSelected ? 'bold' : 'normal',
+                fontSize: 13,
+                cursor: isAnimating ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                textAlign: 'left',
+                opacity: isAnimating ? 0.6 : 1,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>{tierConfig.icon}</span>
+                <span>{tierConfig.label}</span>
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.8, marginTop: 4 }}>
+                💰 {tierConfig.cost.toLocaleString()} 정치자금
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Result display */}
+      {/* Pull button and result */}
       <div
         style={{
           flex: 1,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: 'rgba(0, 0, 0, 0.3)',
           borderRadius: 12,
-          minWidth: 200,
+          padding: 20,
         }}
       >
         {isAnimating ? (
-          <div style={{ color: '#ffd700', fontSize: 24, animation: 'pulse 0.5s infinite' }}>
-            🎰 뽑는 중...
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 12, animation: 'pulse 0.3s infinite alternate' }}>
+              🏛️
+            </div>
+            <div style={{ color: '#ffd700', fontSize: 16 }}>공천 심사 중...</div>
+            <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+              "당심을 반영하여 후보를 선정합니다"
+            </div>
           </div>
         ) : lastPull ? (
           <div style={{ textAlign: 'center' }}>
             <div
               style={{
-                width: 80,
-                height: 80,
-                margin: '0 auto 12px',
-                borderRadius: 8,
-                border: `3px solid ${RARITY_COLORS[lastPull.rarity]}`,
-                backgroundColor: RARITY_BG_COLORS[lastPull.rarity],
+                width: 100,
+                height: 100,
+                margin: '0 auto 16px',
+                borderRadius: 12,
+                border: `4px solid ${TIER_COLORS[lastPull.tier]}`,
+                backgroundColor: TIER_BG_COLORS[lastPull.tier],
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                fontSize: 48,
+                boxShadow: `0 0 20px ${TIER_COLORS[lastPull.tier]}40`,
               }}
             >
-              <CharacterPreview
-                characterId={lastPull.id}
-                color={lastPull.color}
-                size={70}
-              />
+              👤
             </div>
-            <div style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>{lastPull.name}</div>
-            <div style={{ color: RARITY_COLORS[lastPull.rarity], fontSize: 12 }}>
-              {lastPull.rarity.toUpperCase()}
+            <div style={{ color: '#fff', fontWeight: 'bold', fontSize: 18, marginBottom: 4 }}>
+              {lastPull.name}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 8 }}>
+              <span
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  backgroundColor: TIER_BG_COLORS[lastPull.tier],
+                  color: TIER_COLORS[lastPull.tier],
+                  fontSize: 11,
+                }}
+              >
+                {TIER_NAMES[lastPull.tier]}
+              </span>
+              <span
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  backgroundColor: `${PARTY_COLORS[lastPull.party]}20`,
+                  color: PARTY_COLORS[lastPull.party],
+                  fontSize: 11,
+                }}
+              >
+                {PARTY_NAMES[lastPull.party]}
+              </span>
+            </div>
+            <div style={{ color: '#888', fontSize: 12 }}>
+              🗳️ 공천 확정!
             </div>
           </div>
         ) : (
-          <div style={{ color: '#666', fontSize: 14 }}>뽑기 버튼을 눌러주세요</div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>📜</div>
+            <div style={{ color: '#666', fontSize: 14 }}>공천 버튼을 눌러 후보를 선정하세요</div>
+          </div>
         )}
+
+        <button
+          onClick={handlePull}
+          disabled={isAnimating}
+          style={{
+            marginTop: 20,
+            padding: '14px 32px',
+            backgroundColor: isAnimating ? '#444' : config.color,
+            border: 'none',
+            borderRadius: 8,
+            color: '#fff',
+            fontWeight: 'bold',
+            fontSize: 15,
+            cursor: isAnimating ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s',
+            boxShadow: isAnimating ? 'none' : `0 4px 15px ${config.color}40`,
+          }}
+        >
+          🏛️ 공천!
+          <div style={{ fontSize: 11, opacity: 0.8, marginTop: 2 }}>
+            {config.cost.toLocaleString()} 정치자금
+          </div>
+        </button>
       </div>
 
-      {/* Rates info */}
+      {/* Info panel */}
       <div
         style={{
           padding: 16,
@@ -199,247 +286,562 @@ function GachaContent() {
           borderRadius: 8,
           fontSize: 12,
           color: '#888',
+          minWidth: 180,
         }}
       >
-        <div style={{ fontWeight: 'bold', marginBottom: 8, color: '#aaa' }}>확률 정보</div>
-        <div style={{ marginBottom: 4 }}>
-          <span style={{ color: RARITY_COLORS.common }}>Common</span>: 60%
+        <div style={{ fontWeight: 'bold', marginBottom: 12, color: '#aaa' }}>
+          📊 {config.label} 정보
         </div>
-        <div style={{ marginBottom: 4 }}>
-          <span style={{ color: RARITY_COLORS.uncommon }}>Uncommon</span>: 30%
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ color: '#666', marginBottom: 4 }}>후보 풀</div>
+          <div style={{ color: config.color, fontWeight: 'bold' }}>
+            {config.pool.length}명
+          </div>
         </div>
-        <div style={{ marginBottom: 4 }}>
-          <span style={{ color: RARITY_COLORS.rare }}>Rare</span>: 8%
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ color: '#666', marginBottom: 4 }}>공천 비용</div>
+          <div style={{ color: '#ffd700' }}>
+            💰 {config.cost.toLocaleString()}
+          </div>
         </div>
-        <div style={{ marginBottom: 4 }}>
-          <span style={{ color: RARITY_COLORS.epic }}>Epic</span>: 1.9%
-        </div>
-        <div>
-          <span style={{ color: RARITY_COLORS.legendary }}>Legendary</span>: 0.1%
+        <div style={{ borderTop: '1px solid #333', paddingTop: 8, marginTop: 8 }}>
+          <div style={{ color: '#666', marginBottom: 4 }}>당별 분포</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {(['kuk', 'min', 'minor'] as const).map((party) => {
+              const count = config.pool.filter((p) => p.party === party).length;
+              if (count === 0) return null;
+              return (
+                <div key={party} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: PARTY_COLORS[party] }}>{PARTY_NAMES[party]}</span>
+                  <span>{count}명</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ===== UPGRADE CONTENT =====
-function UpgradeContent() {
-  const [selectedChar, setSelectedChar] = useState<DummyCharacter | null>(null);
+// ===== UPGRADE CONTENT - 정치스쿨 =====
+// Tier-based global enhancement: upgrade all units of a tier at once
+type UpgradeTier = 'lv2' | 'lv3' | 'lv4';
 
-  // Get upgradeable characters (common to epic, not legendary)
-  const upgradeableChars = DUMMY_CHARACTERS.filter(c => c.rarity !== 'legendary');
+interface TierUpgradeConfig {
+  tier: PoliticianTier;
+  label: string;
+  tierName: string;
+  icon: string;
+  trainingName: string;
+  baseCost: number;
+  bonusPerLevel: { attack: number; defense: number; hp: number };
+}
+
+const UPGRADE_CONFIG: Record<UpgradeTier, TierUpgradeConfig> = {
+  lv2: {
+    tier: 'lv2',
+    label: '일반의원 강화',
+    tierName: TIER_NAMES.lv2,
+    icon: '🔷',
+    trainingName: '연설 훈련',
+    baseCost: 300,
+    bonusPerLevel: { attack: 3, defense: 2, hp: 15 },
+  },
+  lv3: {
+    tier: 'lv3',
+    label: '핵심중진 강화',
+    tierName: TIER_NAMES.lv3,
+    icon: '🔮',
+    trainingName: '토론 스파링',
+    baseCost: 800,
+    bonusPerLevel: { attack: 5, defense: 3, hp: 25 },
+  },
+  lv4: {
+    tier: 'lv4',
+    label: '원외거물 강화',
+    tierName: TIER_NAMES.lv4,
+    icon: '⭐',
+    trainingName: '지역구 조직관리',
+    baseCost: 2000,
+    bonusPerLevel: { attack: 8, defense: 5, hp: 40 },
+  },
+};
+
+function UpgradeContent() {
+  // Global tier upgrade levels (affects all units of that tier)
+  const [tierLevels, setTierLevels] = useState<Record<UpgradeTier, number>>({
+    lv2: 0,
+    lv3: 0,
+    lv4: 0,
+  });
+
+  const handleUpgrade = (tier: UpgradeTier) => {
+    setTierLevels({
+      ...tierLevels,
+      [tier]: tierLevels[tier] + 1,
+    });
+  };
+
+  const getUpgradeCost = (tier: UpgradeTier) => {
+    const config = UPGRADE_CONFIG[tier];
+    const level = tierLevels[tier];
+    // Cost increases by 50% each level
+    return Math.floor(config.baseCost * Math.pow(1.5, level));
+  };
+
+  const getTotalBonus = (tier: UpgradeTier) => {
+    const config = UPGRADE_CONFIG[tier];
+    const level = tierLevels[tier];
+    return {
+      attack: config.bonusPerLevel.attack * level,
+      defense: config.bonusPerLevel.defense * level,
+      hp: config.bonusPerLevel.hp * level,
+    };
+  };
+
+  const getTierUnitCount = (tier: UpgradeTier) => {
+    switch (tier) {
+      case 'lv2': return LV2_POLITICIANS.length;
+      case 'lv3': return LV3_POLITICIANS.length;
+      case 'lv4': return LV4_POLITICIANS.length;
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 16, height: '100%' }}>
+      {(Object.keys(UPGRADE_CONFIG) as UpgradeTier[]).map((tier) => {
+        const config = UPGRADE_CONFIG[tier];
+        const level = tierLevels[tier];
+        const cost = getUpgradeCost(tier);
+        const bonus = getTotalBonus(tier);
+        const unitCount = getTierUnitCount(tier);
+
+        return (
+          <div
+            key={tier}
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+              borderRadius: 12,
+              padding: 16,
+              border: `2px solid ${TIER_COLORS[config.tier]}`,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: 12 }}>
+              <div style={{ fontSize: 32, marginBottom: 4 }}>{config.icon}</div>
+              <div style={{ color: TIER_COLORS[config.tier], fontWeight: 'bold', fontSize: 14 }}>
+                {config.label}
+              </div>
+              <div style={{ color: '#888', fontSize: 11 }}>
+                {config.tierName} ({unitCount}명)
+              </div>
+            </div>
+
+            {/* Current Level */}
+            <div
+              style={{
+                backgroundColor: `${TIER_COLORS[config.tier]}22`,
+                borderRadius: 8,
+                padding: 10,
+                marginBottom: 12,
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ color: '#ffd700', fontSize: 20, fontWeight: 'bold' }}>
+                Lv. {level}
+              </div>
+              <div style={{ color: '#888', fontSize: 10, marginTop: 2 }}>
+                🎓 {config.trainingName}
+              </div>
+            </div>
+
+            {/* Current Bonuses */}
+            <div style={{ marginBottom: 12, flex: 1 }}>
+              <div style={{ color: '#aaa', fontSize: 10, marginBottom: 6 }}>현재 보너스</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span style={{ color: '#888' }}>공격력</span>
+                  <span style={{ color: '#ff6b6b' }}>
+                    +{bonus.attack}
+                    {level < 10 && (
+                      <span style={{ color: '#666' }}> → +{bonus.attack + config.bonusPerLevel.attack}</span>
+                    )}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span style={{ color: '#888' }}>방어력</span>
+                  <span style={{ color: '#4dabf7' }}>
+                    +{bonus.defense}
+                    {level < 10 && (
+                      <span style={{ color: '#666' }}> → +{bonus.defense + config.bonusPerLevel.defense}</span>
+                    )}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span style={{ color: '#888' }}>체력</span>
+                  <span style={{ color: '#51cf66' }}>
+                    +{bonus.hp}
+                    {level < 10 && (
+                      <span style={{ color: '#666' }}> → +{bonus.hp + config.bonusPerLevel.hp}</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Upgrade Button */}
+            {level < 10 ? (
+              <button
+                onClick={() => handleUpgrade(tier)}
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: TIER_COLORS[config.tier],
+                  border: 'none',
+                  borderRadius: 8,
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                ⬆️ 강화하기
+                <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>
+                  💰 {cost.toLocaleString()} 정치자금
+                </div>
+              </button>
+            ) : (
+              <div
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: '#333',
+                  borderRadius: 8,
+                  color: '#ffd700',
+                  fontWeight: 'bold',
+                  fontSize: 12,
+                  textAlign: 'center',
+                }}
+              >
+                ✨ MAX LEVEL
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ===== QUEST CONTENT - 출마 캠프 =====
+// Election campaign quests with difficulty levels
+interface CampaignQuest {
+  id: string;
+  name: string;
+  description: string;
+  difficulty: number;
+  requirement: string;
+  reward: string;
+  rewardAmount: number;
+  icon: string;
+  unlocked: boolean;
+}
+
+const CAMPAIGN_QUESTS: CampaignQuest[] = [
+  {
+    id: 'quest_1',
+    name: '기초의원 보궐선거',
+    description: '작은 지역구에서 첫 선거를 치릅니다.',
+    difficulty: 1,
+    requirement: 'Lv3 1장 이상',
+    reward: '정치자금',
+    rewardAmount: 500,
+    icon: '🏘️',
+    unlocked: true,
+  },
+  {
+    id: 'quest_2',
+    name: '광역의회 재보선',
+    description: '광역 단위 선거에 도전합니다.',
+    difficulty: 2,
+    requirement: 'Lv3 3장 이상',
+    reward: '정치자금',
+    rewardAmount: 1200,
+    icon: '🏛️',
+    unlocked: true,
+  },
+  {
+    id: 'quest_3',
+    name: '국회의원 재선거',
+    description: '국회에 입성하기 위한 치열한 경쟁입니다.',
+    difficulty: 3,
+    requirement: 'Lv4 1장 이상',
+    reward: '정치자금',
+    rewardAmount: 2500,
+    icon: '🏰',
+    unlocked: true,
+  },
+  {
+    id: 'quest_4',
+    name: '광역단체장 보궐',
+    description: '시·도지사를 향한 도전입니다.',
+    difficulty: 4,
+    requirement: 'Lv4 3장 이상',
+    reward: '정치자금',
+    rewardAmount: 5000,
+    icon: '🌆',
+    unlocked: false,
+  },
+  {
+    id: 'quest_5',
+    name: '조기 대선 모의전',
+    description: '최고 난이도! 대권을 향한 마지막 관문입니다.',
+    difficulty: 5,
+    requirement: 'Lv5 1장 이상',
+    reward: '정치자금',
+    rewardAmount: 10000,
+    icon: '🇰🇷',
+    unlocked: false,
+  },
+];
+
+function QuestContent() {
+  const [selectedQuest, setSelectedQuest] = useState<CampaignQuest | null>(null);
+  const [questProgress, setQuestProgress] = useState<Record<string, { completed: boolean; claimed: boolean }>>({
+    quest_1: { completed: true, claimed: false },
+  });
+
+  const handleStartCampaign = (quest: CampaignQuest) => {
+    // TODO: Trigger boss wave in game
+    console.log('Starting campaign:', quest.name);
+    setSelectedQuest(quest);
+  };
+
+  const handleClaimReward = (questId: string) => {
+    setQuestProgress({
+      ...questProgress,
+      [questId]: { ...questProgress[questId], claimed: true },
+    });
+  };
+
+  const getDifficultyStars = (difficulty: number) => {
+    return '⭐'.repeat(difficulty) + '☆'.repeat(5 - difficulty);
+  };
+
+  const getDifficultyColor = (difficulty: number) => {
+    const colors = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'];
+    return colors[difficulty - 1] || '#888';
+  };
 
   return (
     <div style={{ display: 'flex', gap: 20, height: '100%' }}>
-      {/* Character list */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          maxWidth: 400,
-          overflowY: 'auto',
-          padding: 4,
-        }}
-      >
-        {upgradeableChars.map((char) => (
-          <div
-            key={char.id}
-            onClick={() => setSelectedChar(char)}
-            style={{
-              width: 60,
-              height: 75,
-              backgroundColor: RARITY_BG_COLORS[char.rarity],
-              border: `2px solid ${selectedChar?.id === char.id ? '#fff' : RARITY_COLORS[char.rarity]}`,
-              borderRadius: 6,
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s',
-            }}
-          >
-            <CharacterPreview characterId={char.id} color={char.color} size={35} />
+      {/* Quest list */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ color: '#aaa', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>
+          🗳️ 선거 출마
+        </div>
+        {CAMPAIGN_QUESTS.map((quest) => {
+          const progress = questProgress[quest.id];
+          const isCompleted = progress?.completed;
+          const isClaimed = progress?.claimed;
+
+          return (
             <div
+              key={quest.id}
+              onClick={() => quest.unlocked && setSelectedQuest(quest)}
               style={{
-                fontSize: 9,
-                color: '#fff',
-                textAlign: 'center',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                width: '100%',
-                padding: '0 2px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '10px 14px',
+                backgroundColor: !quest.unlocked
+                  ? 'rgba(50, 50, 50, 0.5)'
+                  : isCompleted
+                  ? 'rgba(34, 197, 94, 0.1)'
+                  : selectedQuest?.id === quest.id
+                  ? 'rgba(100, 100, 150, 0.3)'
+                  : 'rgba(0, 0, 0, 0.3)',
+                borderRadius: 8,
+                border: isCompleted
+                  ? '1px solid #22c55e'
+                  : selectedQuest?.id === quest.id
+                  ? '1px solid #666'
+                  : '1px solid #333',
+                cursor: quest.unlocked ? 'pointer' : 'not-allowed',
+                opacity: quest.unlocked ? 1 : 0.5,
+                transition: 'all 0.2s',
               }}
             >
-              {char.name}
+              {/* Quest icon */}
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  backgroundColor: isCompleted ? '#22c55e' : getDifficultyColor(quest.difficulty),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 18,
+                }}
+              >
+                {isCompleted ? '✓' : quest.icon}
+              </div>
+
+              {/* Quest info */}
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>
+                    {quest.name}
+                  </span>
+                  {!quest.unlocked && (
+                    <span style={{ color: '#f97316', fontSize: 10 }}>🔒 잠김</span>
+                  )}
+                </div>
+                <div style={{ color: '#888', fontSize: 11 }}>
+                  {getDifficultyStars(quest.difficulty)}
+                </div>
+              </div>
+
+              {/* Reward */}
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ color: '#ffd700', fontSize: 11 }}>
+                  💰 {quest.rewardAmount.toLocaleString()}
+                </div>
+                {isCompleted && !isClaimed && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClaimReward(quest.id);
+                    }}
+                    style={{
+                      marginTop: 4,
+                      padding: '3px 10px',
+                      backgroundColor: '#22c55e',
+                      border: 'none',
+                      borderRadius: 4,
+                      color: '#fff',
+                      fontSize: 10,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    수령
+                  </button>
+                )}
+                {isClaimed && (
+                  <div style={{ color: '#888', fontSize: 10, marginTop: 4 }}>
+                    ✓ 수령완료
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Upgrade panel */}
+      {/* Quest detail panel */}
       <div
         style={{
-          flex: 1,
+          width: 280,
           backgroundColor: 'rgba(0, 0, 0, 0.3)',
           borderRadius: 12,
           padding: 20,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
         }}
       >
-        {selectedChar ? (
+        {selectedQuest ? (
           <>
-            <div
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 8,
-                border: `3px solid ${RARITY_COLORS[selectedChar.rarity]}`,
-                backgroundColor: RARITY_BG_COLORS[selectedChar.rarity],
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 12,
-              }}
-            >
-              <CharacterPreview characterId={selectedChar.id} color={selectedChar.color} size={70} />
-            </div>
-            <div style={{ color: '#fff', fontWeight: 'bold', marginBottom: 8 }}>{selectedChar.name}</div>
-
-            <div style={{ display: 'flex', gap: 20, marginBottom: 16, fontSize: 14 }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ color: '#ff6b6b' }}>{selectedChar.attack}</div>
-                <div style={{ color: '#888', fontSize: 10 }}>공격력</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ color: '#4dabf7' }}>{selectedChar.defense}</div>
-                <div style={{ color: '#888', fontSize: 10 }}>방어력</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ color: '#51cf66' }}>{selectedChar.hp}</div>
-                <div style={{ color: '#888', fontSize: 10 }}>체력</div>
-              </div>
-            </div>
-
-            <button
-              style={{
-                padding: '10px 24px',
-                backgroundColor: '#ffd700',
-                border: 'none',
-                borderRadius: 8,
-                color: '#1a1a2e',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
-            >
-              ⬆️ 강화하기 (200 골드)
-            </button>
-          </>
-        ) : (
-          <div style={{ color: '#666' }}>강화할 캐릭터를 선택하세요</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ===== QUEST CONTENT =====
-function QuestContent() {
-  const quests = [
-    { id: 1, name: '첫 번째 승리', description: '웨이브 1 클리어', reward: '100 골드', progress: 1, total: 1, completed: true },
-    { id: 2, name: '몬스터 사냥꾼', description: '몬스터 50마리 처치', reward: '300 골드', progress: 32, total: 50, completed: false },
-    { id: 3, name: '수집가', description: '캐릭터 5개 수집', reward: '뽑기권 1장', progress: 3, total: 5, completed: false },
-    { id: 4, name: '강화 마스터', description: '캐릭터 강화 3회', reward: '500 골드', progress: 0, total: 3, completed: false },
-  ];
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {quests.map((quest) => (
-        <div
-          key={quest.id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-            padding: '12px 16px',
-            backgroundColor: quest.completed ? 'rgba(34, 197, 94, 0.1)' : 'rgba(0, 0, 0, 0.3)',
-            borderRadius: 8,
-            border: quest.completed ? '1px solid #22c55e' : '1px solid #333',
-          }}
-        >
-          {/* Quest icon */}
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: '50%',
-              backgroundColor: quest.completed ? '#22c55e' : '#444',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 18,
-            }}
-          >
-            {quest.completed ? '✓' : '📜'}
-          </div>
-
-          {/* Quest info */}
-          <div style={{ flex: 1 }}>
-            <div style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>{quest.name}</div>
-            <div style={{ color: '#888', fontSize: 12 }}>{quest.description}</div>
-            {!quest.completed && (
-              <div style={{ marginTop: 4 }}>
-                <div
-                  style={{
-                    width: '100%',
-                    height: 4,
-                    backgroundColor: '#333',
-                    borderRadius: 2,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${(quest.progress / quest.total) * 100}%`,
-                      height: '100%',
-                      backgroundColor: '#4a90d9',
-                    }}
-                  />
-                </div>
-                <div style={{ color: '#666', fontSize: 10, marginTop: 2 }}>
-                  {quest.progress} / {quest.total}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Reward */}
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ color: '#ffd700', fontSize: 12 }}>{quest.reward}</div>
-            {quest.completed && (
-              <button
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <div
                 style={{
-                  marginTop: 4,
-                  padding: '4px 12px',
-                  backgroundColor: '#22c55e',
-                  border: 'none',
-                  borderRadius: 4,
-                  color: '#fff',
-                  fontSize: 12,
-                  cursor: 'pointer',
+                  width: 64,
+                  height: 64,
+                  margin: '0 auto 12px',
+                  borderRadius: '50%',
+                  backgroundColor: getDifficultyColor(selectedQuest.difficulty),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 32,
                 }}
               >
-                수령
-              </button>
-            )}
+                {selectedQuest.icon}
+              </div>
+              <div style={{ color: '#fff', fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
+                {selectedQuest.name}
+              </div>
+              <div style={{ color: getDifficultyColor(selectedQuest.difficulty), fontSize: 12 }}>
+                {getDifficultyStars(selectedQuest.difficulty)}
+              </div>
+            </div>
+
+            <div style={{ color: '#aaa', fontSize: 12, marginBottom: 16, lineHeight: 1.5 }}>
+              {selectedQuest.description}
+            </div>
+
+            <div
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ color: '#888', fontSize: 11 }}>필요 조건</span>
+                <span style={{ color: '#fff', fontSize: 11 }}>{selectedQuest.requirement}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#888', fontSize: 11 }}>보상</span>
+                <span style={{ color: '#ffd700', fontSize: 11 }}>
+                  💰 {selectedQuest.rewardAmount.toLocaleString()} {selectedQuest.reward}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ flex: 1 }} />
+
+            <button
+              onClick={() => handleStartCampaign(selectedQuest)}
+              disabled={!selectedQuest.unlocked}
+              style={{
+                padding: '12px 20px',
+                backgroundColor: selectedQuest.unlocked ? getDifficultyColor(selectedQuest.difficulty) : '#444',
+                border: 'none',
+                borderRadius: 8,
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: 14,
+                cursor: selectedQuest.unlocked ? 'pointer' : 'not-allowed',
+              }}
+            >
+              🗳️ 출마하기
+            </button>
+
+            <div style={{ color: '#666', fontSize: 10, textAlign: 'center', marginTop: 8 }}>
+              출마 시 보스 웨이브가 발생합니다
+            </div>
+          </>
+        ) : (
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#666',
+            }}
+          >
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>🗳️</div>
+            <div style={{ fontSize: 13 }}>선거를 선택하세요</div>
           </div>
-        </div>
-      ))}
+        )}
+      </div>
     </div>
   );
 }

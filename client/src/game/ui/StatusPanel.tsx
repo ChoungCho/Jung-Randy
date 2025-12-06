@@ -3,14 +3,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { CharacterData, MonsterData, SelectionTarget } from '../types';
 import { BuildingType, BUILDINGS } from '../buildings';
 import {
-  DUMMY_CHARACTERS,
-  RARITY_COLORS,
-  RARITY_BG_COLORS,
-  getCharactersByRarity,
-  type DummyCharacter,
-} from '../data/dummyCharacters';
-import { CharacterPreview } from './CharacterPreview';
-import {
   getCombinationOptions,
   checkMaterialAvailability,
   CombinationOption,
@@ -18,6 +10,10 @@ import {
   TIER_NAMES,
   PARTY_COLORS,
   PARTY_NAMES,
+  LV2_POLITICIANS,
+  LV3_POLITICIANS,
+  LV4_POLITICIANS,
+  type Politician,
 } from '../data/politicians';
 
 interface StatusPanelProps {
@@ -367,14 +363,23 @@ function StatBar({ label, value, max }: { label: string; value: number; max: num
 function BuildingStatusPanel({ buildingType }: { buildingType: BuildingType }) {
   const building = BUILDINGS[buildingType];
 
+  // Building-specific accent colors
+  const accentColors: Record<BuildingType, string> = {
+    gacha: '#22c55e',    // Green for 공천위원회
+    upgrade: '#3b82f6',  // Blue for 정치스쿨
+    quest: '#f59e0b',    // Orange for 출마 캠프
+  };
+
+  const accent = accentColors[buildingType];
+
   return (
     <div style={{
       position: 'absolute',
       bottom: 20,
       left: '50%',
       transform: 'translateX(-50%)',
-      background: 'rgba(20, 20, 50, 0.95)',
-      border: '2px solid #4a4a8a',
+      background: 'rgba(20, 20, 40, 0.95)',
+      border: `2px solid ${accent}`,
       borderRadius: '12px',
       padding: '15px 25px',
       color: 'white',
@@ -384,59 +389,75 @@ function BuildingStatusPanel({ buildingType }: { buildingType: BuildingType }) {
       zIndex: 100,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-        <div style={portraitBox('#2a2a4a', '#6a6a9a', 60, 8)}>
+        <div style={portraitBox(`${accent}22`, accent, 60, 8)}>
           {building.icon}
         </div>
         <div>
-          <h3 style={{ margin: 0, color: '#a0a0ff' }}>{building.name}</h3>
+          <h3 style={{ margin: 0, color: accent }}>{building.name}</h3>
           <p style={{ margin: '4px 0 0 0', color: '#888', fontSize: 12 }}>{building.description}</p>
         </div>
       </div>
 
-      {buildingType === 'gacha' && <GachaPanel />}
-      {buildingType === 'upgrade' && <UpgradePanel />}
-      {buildingType === 'quest' && <QuestPanel />}
+      {buildingType === 'gacha' && <GachaPanelCompact />}
+      {buildingType === 'upgrade' && <UpgradePanelCompact />}
+      {buildingType === 'quest' && <QuestPanelCompact />}
     </div>
   );
 }
 
-// ===== GACHA PANEL =====
-function GachaPanel() {
-  const [lastPull, setLastPull] = useState<DummyCharacter | null>(null);
+// ===== GACHA PANEL COMPACT - 공천위원회 =====
+type GachaTierCompact = 'lv2' | 'lv3' | 'lv4';
+const GACHA_POOLS: Record<GachaTierCompact, { pool: Politician[]; cost: number; label: string }> = {
+  lv2: { pool: LV2_POLITICIANS, cost: 200, label: '일반의원' },
+  lv3: { pool: LV3_POLITICIANS, cost: 500, label: '핵심중진' },
+  lv4: { pool: LV4_POLITICIANS, cost: 1200, label: '원외거물' },
+};
+
+function GachaPanelCompact() {
+  const [selectedTier, setSelectedTier] = useState<GachaTierCompact>('lv2');
+  const [lastPull, setLastPull] = useState<Politician | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const handlePull = (rarity: 'common' | 'rare') => {
+  const handlePull = () => {
+    const { pool } = GACHA_POOLS[selectedTier];
     setIsAnimating(true);
     setLastPull(null);
 
     setTimeout(() => {
-      const pool = rarity === 'common'
-        ? [...getCharactersByRarity('common'), ...getCharactersByRarity('uncommon')]
-        : [...getCharactersByRarity('rare'), ...getCharactersByRarity('epic')];
-
       const result = pool[Math.floor(Math.random() * pool.length)];
       setLastPull(result);
       setIsAnimating(false);
     }, 800);
   };
 
+  const config = GACHA_POOLS[selectedTier];
+
   return (
     <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button
-          onClick={() => handlePull('common')}
-          disabled={isAnimating}
-          style={pullBtn(isAnimating ? '#333' : '#4a90d9')}
-        >
-          Common Draw (100G)
-        </button>
-        <button
-          onClick={() => handlePull('rare')}
-          disabled={isAnimating}
-          style={pullBtn(isAnimating ? '#333' : '#9932cc')}
-        >
-          Rare Draw (500G)
-        </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {(Object.keys(GACHA_POOLS) as GachaTierCompact[]).map((tier) => {
+          const tierConfig = GACHA_POOLS[tier];
+          const isSelected = selectedTier === tier;
+          return (
+            <button
+              key={tier}
+              onClick={() => setSelectedTier(tier)}
+              disabled={isAnimating}
+              style={{
+                padding: '8px 14px',
+                backgroundColor: isSelected ? TIER_COLORS[tier] : '#333',
+                border: `1px solid ${isSelected ? TIER_COLORS[tier] : '#555'}`,
+                borderRadius: 6,
+                color: '#fff',
+                fontSize: 11,
+                cursor: isAnimating ? 'not-allowed' : 'pointer',
+                opacity: isAnimating ? 0.6 : 1,
+              }}
+            >
+              {tierConfig.label} ({tierConfig.cost}G)
+            </button>
+          );
+        })}
       </div>
 
       <div style={{
@@ -450,187 +471,152 @@ function GachaPanel() {
         minHeight: 80,
       }}>
         {isAnimating ? (
-          <div style={{ color: '#ffd700', fontSize: 18 }}>Drawing...</div>
+          <div style={{ color: '#ffd700', fontSize: 16 }}>🏛️ 공천 심사중...</div>
         ) : lastPull ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
               width: 50,
               height: 50,
               borderRadius: 6,
-              border: `2px solid ${RARITY_COLORS[lastPull.rarity]}`,
-              backgroundColor: RARITY_BG_COLORS[lastPull.rarity],
+              border: `2px solid ${TIER_COLORS[lastPull.tier]}`,
+              backgroundColor: `${TIER_COLORS[lastPull.tier]}22`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              fontSize: 24,
             }}>
-              <CharacterPreview characterId={lastPull.id} color={lastPull.color} size={45} />
+              👤
             </div>
             <div>
               <div style={{ color: '#fff', fontWeight: 'bold' }}>{lastPull.name}</div>
-              <div style={{ color: RARITY_COLORS[lastPull.rarity], fontSize: 11 }}>
-                {lastPull.rarity.toUpperCase()}
+              <div style={{ display: 'flex', gap: 6, fontSize: 10 }}>
+                <span style={{ color: TIER_COLORS[lastPull.tier] }}>{TIER_NAMES[lastPull.tier]}</span>
+                <span style={{ color: PARTY_COLORS[lastPull.party] }}>{PARTY_NAMES[lastPull.party]}</span>
               </div>
             </div>
           </div>
         ) : (
-          <div style={{ color: '#666', fontSize: 12 }}>Press draw to get a unit</div>
+          <div style={{ color: '#666', fontSize: 12 }}>공천 버튼을 눌러주세요</div>
         )}
       </div>
 
-      <div style={{ fontSize: 10, color: '#666', lineHeight: 1.6 }}>
-        <div><span style={{ color: RARITY_COLORS.common }}>●</span> Common 60%</div>
-        <div><span style={{ color: RARITY_COLORS.uncommon }}>●</span> Uncommon 30%</div>
-        <div><span style={{ color: RARITY_COLORS.rare }}>●</span> Rare 8%</div>
-        <div><span style={{ color: RARITY_COLORS.epic }}>●</span> Epic 2%</div>
-      </div>
+      <button
+        onClick={handlePull}
+        disabled={isAnimating}
+        style={{
+          padding: '12px 20px',
+          backgroundColor: isAnimating ? '#333' : TIER_COLORS[selectedTier],
+          border: 'none',
+          borderRadius: 8,
+          color: '#fff',
+          fontWeight: 'bold',
+          fontSize: 13,
+          cursor: isAnimating ? 'not-allowed' : 'pointer',
+        }}
+      >
+        🏛️ 공천!
+        <div style={{ fontSize: 10, opacity: 0.8 }}>{config.cost}G</div>
+      </button>
     </div>
   );
 }
 
-const pullBtn = (bg: string) => ({
-  padding: '10px 20px',
-  backgroundColor: bg,
-  border: 'none',
-  borderRadius: 6,
-  color: 'white',
-  fontWeight: 'bold',
-  fontSize: 12,
-  cursor: 'pointer',
-});
+// ===== UPGRADE PANEL COMPACT - 정치스쿨 =====
+// Global tier upgrade - affects all units of that tier
+function UpgradePanelCompact() {
+  const [tierLevels, setTierLevels] = useState<Record<string, number>>({
+    lv2: 0, lv3: 0, lv4: 0,
+  });
 
-// ===== UPGRADE PANEL =====
-function UpgradePanel() {
-  const [selectedChar, setSelectedChar] = useState<DummyCharacter | null>(null);
-  const upgradeableChars = DUMMY_CHARACTERS.filter(c => c.rarity !== 'legendary').slice(0, 8);
+  const tiers = [
+    { id: 'lv2', label: '일반의원', icon: '🔷', count: LV2_POLITICIANS.length, cost: 300 },
+    { id: 'lv3', label: '핵심중진', icon: '🔮', count: LV3_POLITICIANS.length, cost: 800 },
+    { id: 'lv4', label: '원외거물', icon: '⭐', count: LV4_POLITICIANS.length, cost: 2000 },
+  ];
+
+  const handleUpgrade = (tierId: string) => {
+    setTierLevels({ ...tierLevels, [tierId]: tierLevels[tierId] + 1 });
+  };
 
   return (
-    <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxWidth: 280 }}>
-        {upgradeableChars.map((char) => (
+    <div style={{ display: 'flex', gap: 12 }}>
+      {tiers.map((tier) => {
+        const level = tierLevels[tier.id];
+        const cost = Math.floor(tier.cost * Math.pow(1.5, level));
+        return (
           <div
-            key={char.id}
-            onClick={() => setSelectedChar(char)}
+            key={tier.id}
             style={{
-              width: 45,
-              height: 55,
-              backgroundColor: RARITY_BG_COLORS[char.rarity],
-              border: `2px solid ${selectedChar?.id === char.id ? '#fff' : RARITY_COLORS[char.rarity]}`,
-              borderRadius: 4,
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              borderRadius: 8,
+              padding: 12,
+              border: `1px solid ${TIER_COLORS[tier.id as keyof typeof TIER_COLORS]}`,
+              textAlign: 'center',
             }}
           >
-            <CharacterPreview characterId={char.id} color={char.color} size={30} />
-            <div style={{ fontSize: 8, color: '#fff', textAlign: 'center', marginTop: 2 }}>
-              {char.name.slice(0, 4)}
+            <div style={{ fontSize: 24, marginBottom: 4 }}>{tier.icon}</div>
+            <div style={{ color: '#fff', fontWeight: 'bold', fontSize: 11 }}>{tier.label}</div>
+            <div style={{ color: '#888', fontSize: 9 }}>{tier.count}명</div>
+            <div style={{ color: '#ffd700', fontSize: 14, fontWeight: 'bold', margin: '6px 0' }}>
+              Lv.{level}
             </div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        borderRadius: 8,
-        padding: 12,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 80,
-      }}>
-        {selectedChar ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{
-              width: 50,
-              height: 50,
-              borderRadius: 6,
-              border: `2px solid ${RARITY_COLORS[selectedChar.rarity]}`,
-              backgroundColor: RARITY_BG_COLORS[selectedChar.rarity],
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <CharacterPreview characterId={selectedChar.id} color={selectedChar.color} size={45} />
-            </div>
-            <div>
-              <div style={{ color: '#fff', fontWeight: 'bold', marginBottom: 4 }}>{selectedChar.name}</div>
-              <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
-                <span style={{ color: '#ff6b6b' }}>ATK {selectedChar.attack}</span>
-                <span style={{ color: '#4dabf7' }}>DEF {selectedChar.defense}</span>
-                <span style={{ color: '#51cf66' }}>HP {selectedChar.hp}</span>
-              </div>
-            </div>
-            <button style={{
-              padding: '8px 16px',
-              backgroundColor: '#ffd700',
-              border: 'none',
-              borderRadius: 6,
-              color: '#1a1a2e',
-              fontWeight: 'bold',
-              fontSize: 11,
-              cursor: 'pointer',
-            }}>
-              Upgrade (200G)
+            <button
+              onClick={() => handleUpgrade(tier.id)}
+              style={{
+                padding: '4px 10px',
+                backgroundColor: TIER_COLORS[tier.id as keyof typeof TIER_COLORS],
+                border: 'none',
+                borderRadius: 4,
+                color: '#fff',
+                fontSize: 10,
+                cursor: 'pointer',
+              }}
+            >
+              강화 ({cost}G)
             </button>
           </div>
-        ) : (
-          <div style={{ color: '#666', fontSize: 12 }}>Select a character to upgrade</div>
-        )}
-      </div>
+        );
+      })}
     </div>
   );
 }
 
-// ===== QUEST PANEL =====
-function QuestPanel() {
-  const quests = [
-    { id: 1, name: 'First victory', reward: '100G', progress: 1, total: 1, completed: true },
-    { id: 2, name: 'Defeat 50 monsters', reward: '300G', progress: 32, total: 50, completed: false },
-    { id: 3, name: 'Collect 5 characters', reward: 'Draw ticket', progress: 3, total: 5, completed: false },
+// ===== QUEST PANEL COMPACT - 출마 캠프 =====
+function QuestPanelCompact() {
+  const campaigns = [
+    { id: 1, name: '기초의원 보궐', reward: '500G', difficulty: 1, completed: true },
+    { id: 2, name: '광역의회 재보선', reward: '1,200G', difficulty: 2, completed: false },
+    { id: 3, name: '국회의원 재선거', reward: '2,500G', difficulty: 3, completed: false },
   ];
+
+  const getDifficultyColor = (d: number) => ['#22c55e', '#eab308', '#ef4444'][d - 1] || '#888';
 
   return (
     <div style={{ display: 'flex', gap: 8 }}>
-      {quests.map((quest) => (
+      {campaigns.map((campaign) => (
         <div
-          key={quest.id}
+          key={campaign.id}
           style={{
             flex: 1,
             padding: 10,
-            backgroundColor: quest.completed ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0, 0, 0, 0.3)',
+            backgroundColor: campaign.completed ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0, 0, 0, 0.3)',
             borderRadius: 6,
-            border: quest.completed ? '1px solid #22c55e' : '1px solid #333',
+            border: campaign.completed ? '1px solid #22c55e' : `1px solid ${getDifficultyColor(campaign.difficulty)}`,
           }}
         >
-          <div style={{ color: '#fff', fontWeight: 'bold', fontSize: 12, marginBottom: 4 }}>
-            {quest.name}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <span style={{ fontSize: 14 }}>{campaign.completed ? '✓' : '🗳️'}</span>
+            <span style={{ color: '#fff', fontWeight: 'bold', fontSize: 11 }}>
+              {campaign.name}
+            </span>
           </div>
-          {!quest.completed && (
-            <div style={{ marginBottom: 6 }}>
-              <div style={{
-                width: '100%',
-                height: 4,
-                backgroundColor: '#333',
-                borderRadius: 2,
-              }}>
-                <div style={{
-                  width: `${(quest.progress / quest.total) * 100}%`,
-                  height: '100%',
-                  backgroundColor: '#4a90d9',
-                  borderRadius: 2,
-                }} />
-              </div>
-              <div style={{ color: '#666', fontSize: 9, marginTop: 2 }}>
-                {quest.progress}/{quest.total}
-              </div>
-            </div>
-          )}
+          <div style={{ color: getDifficultyColor(campaign.difficulty), fontSize: 10, marginBottom: 4 }}>
+            {'⭐'.repeat(campaign.difficulty)}{'☆'.repeat(3 - campaign.difficulty)}
+          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#ffd700', fontSize: 10 }}>{quest.reward}</span>
-            {quest.completed && (
+            <span style={{ color: '#ffd700', fontSize: 10 }}>💰 {campaign.reward}</span>
+            {campaign.completed ? (
               <button style={{
                 padding: '4px 8px',
                 backgroundColor: '#22c55e',
@@ -640,7 +626,19 @@ function QuestPanel() {
                 fontSize: 10,
                 cursor: 'pointer',
               }}>
-                Claim
+                수령
+              </button>
+            ) : (
+              <button style={{
+                padding: '4px 8px',
+                backgroundColor: getDifficultyColor(campaign.difficulty),
+                border: 'none',
+                borderRadius: 4,
+                color: '#fff',
+                fontSize: 10,
+                cursor: 'pointer',
+              }}>
+                출마
               </button>
             )}
           </div>
