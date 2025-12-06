@@ -3,6 +3,14 @@ import * as THREE from 'three';
 import { CharacterStats } from './gameData';
 import { PoliticianTier, Party } from './data/politicians';
 
+// Targeting priority for characters
+export type TargetingMode =
+  | 'closest'
+  | 'lowest_hp'
+  | 'highest_hp'
+  | 'boss_first'
+  | 'clustered';
+
 // Character data structure
 export interface CharacterData {
   id: string;

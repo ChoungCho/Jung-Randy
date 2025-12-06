@@ -42,6 +42,7 @@ import { useWaveSystem, useCharacterSystem } from './hooks';
 // Constants
 import { LANE_OFFSET } from './constants';
 import { ALL_POLITICIANS } from './data/politicians';
+import { TargetingMode } from './types';
 
 export default function GameScene() {
   // Recipe panel state
@@ -49,6 +50,7 @@ export default function GameScene() {
 
   // Building panel state
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null);
+  const [targetingMode, setTargetingMode] = useState<TargetingMode>('closest');
 
   const handleBuildingSelect = (type: BuildingType) => {
     setSelectedBuilding(prev => prev === type ? null : type);
@@ -215,6 +217,8 @@ export default function GameScene() {
         characters={characters}
         monsters={monsters}
         totalMonstersKilled={totalMonstersKilled}
+        targetingMode={targetingMode}
+        onChangeTargetingMode={setTargetingMode}
       />
 
       {/* Spawn Button */}
@@ -326,6 +330,7 @@ export default function GameScene() {
               monsterPosRefs={monsterPosRefs.current}
               onAttackMonster={handleAttackMonster}
               onStateChange={handleStateChange}
+              targetingMode={targetingMode}
               hideOverlay={isRecipePanelOpen}
             />
           ) : (
@@ -339,6 +344,7 @@ export default function GameScene() {
               monsterPosRefs={monsterPosRefs.current}
               onAttackMonster={handleAttackMonster}
               onStateChange={handleStateChange}
+              targetingMode={targetingMode}
               hideOverlay={isRecipePanelOpen}
             />
           )
