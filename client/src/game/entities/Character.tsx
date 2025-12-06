@@ -73,6 +73,7 @@ export function Character({
   const cancelAttackRef = useRef(false);
   const isAoESkillRef = useRef(false);
   const lastClickTimeRef = useRef<number>(0);
+  const lastClickedIdRef = useRef<string | null>(null);
 
   // Keep monsters in ref to avoid useEffect re-runs when monsters change
   const monstersRef = useRef(monsters);
@@ -433,14 +434,17 @@ export function Character({
 
     const currentTime = Date.now();
     const timeSinceLastClick = currentTime - lastClickTimeRef.current;
-    const isDoubleClick = timeSinceLastClick < 300;
+    const sameTargetAsLast = lastClickedIdRef.current === data.id;
+    const isDoubleClick = sameTargetAsLast && timeSinceLastClick < 250;
 
     if (isDoubleClick && onSelectAllSameType) {
       onSelectAllSameType(data.type);
       lastClickTimeRef.current = 0;
+      lastClickedIdRef.current = null;
     } else {
       onSelect(data.id, e.shiftKey);
       lastClickTimeRef.current = currentTime;
+      lastClickedIdRef.current = data.id;
     }
   };
 

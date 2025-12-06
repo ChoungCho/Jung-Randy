@@ -154,6 +154,7 @@ export function StatusPanel({
     ? Math.max(0, activeSkill.cooldown - (Date.now() - char.lastActiveSkillTime))
     : 0;
   const sameTypeCount = characters.filter(c => c.stats.id === stats.id && c.id !== char.id).length;
+  const rallyCount = sameTypeCount + 1; // include the anchor unit
 
   // If politician is selected, show combination panel
   if (char.politician && onCombine) {
@@ -218,7 +219,7 @@ export function StatusPanel({
           disabled={sameTypeCount === 0}
           title={sameTypeCount === 0 ? '같은 유닛이 없어서 집결 불가' : '선택한 유닛 위치로 같은 유닛 집결'}
         >
-          집결 ({sameTypeCount})
+          집결 ({rallyCount})
         </button>
       </div>
     </div>
@@ -663,6 +664,7 @@ function PoliticianStatusPanel({ char, characters, onCombine, onRallySameUnits }
   const partyColor = PARTY_COLORS[politician.party];
   const tierColor = TIER_COLORS[politician.tier];
   const sameTypeCount = characters.filter(c => c.stats.id === char.stats.id && c.id !== char.id).length;
+  const rallyCount = sameTypeCount + 1; // include the anchor unit
 
   // Get combination options for this politician
   const combinationOptions = useMemo(() => {
@@ -751,13 +753,13 @@ function PoliticianStatusPanel({ char, characters, onCombine, onRallySameUnits }
               style={{
                 ...primaryBtn,
                 padding: '6px 10px',
-              opacity: sameTypeCount === 0 ? 0.5 : 1,
-              cursor: sameTypeCount === 0 ? 'not-allowed' : 'pointer',
-            }}
-          >
-            집결 ({sameTypeCount})
-          </button>
-        </div>
+                opacity: sameTypeCount === 0 ? 0.5 : 1,
+                cursor: sameTypeCount === 0 ? 'not-allowed' : 'pointer',
+              }}
+            >
+              집결 ({rallyCount})
+            </button>
+          </div>
         <div style={{ display: 'flex', gap: 15, fontSize: 12, color: '#ccc' }}>
           <span>공격력: {char.stats.attack}</span>
         </div>

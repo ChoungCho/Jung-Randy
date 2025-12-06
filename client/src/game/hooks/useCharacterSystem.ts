@@ -69,7 +69,14 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
       position,
       startTime: Date.now()
     };
-    setMoveIndicators(prev => [...prev, newIndicator]);
+    // Keep only the latest indicator, and skip if position is effectively identical
+    setMoveIndicators(prev => {
+      const last = prev[prev.length - 1];
+      if (last && last.position.distanceTo(position) < 0.05) {
+        return prev;
+      }
+      return [newIndicator];
+    });
   }, []);
 
   // Remove completed indicator
