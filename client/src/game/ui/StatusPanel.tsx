@@ -13,6 +13,8 @@ import {
   LV2_POLITICIANS,
   LV3_POLITICIANS,
   LV4_POLITICIANS,
+  LV5_POLITICIANS,
+  LV6_POLITICIANS,
   type Politician,
 } from '../data/politicians';
 
@@ -525,62 +527,197 @@ function GachaPanelCompact() {
 }
 
 // ===== UPGRADE PANEL COMPACT - 정치스쿨 =====
-// Global tier upgrade - affects all units of that tier
+// Two modes: Global tier upgrade OR Individual Lv5/Lv6 upgrade
+type UpgradeModeCompact = 'tier' | 'individual';
+
 function UpgradePanelCompact() {
+  const [mode, setMode] = useState<UpgradeModeCompact>('tier');
   const [tierLevels, setTierLevels] = useState<Record<string, number>>({
-    lv2: 0, lv3: 0, lv4: 0,
+    lv2: 0, lv3: 0, lv4: 0, lv5: 0,
   });
+  const [individualLevels, setIndividualLevels] = useState<Record<string, number>>({});
 
   const tiers = [
     { id: 'lv2', label: '일반의원', icon: '🔷', count: LV2_POLITICIANS.length, cost: 300 },
     { id: 'lv3', label: '핵심중진', icon: '🔮', count: LV3_POLITICIANS.length, cost: 800 },
     { id: 'lv4', label: '원외거물', icon: '⭐', count: LV4_POLITICIANS.length, cost: 2000 },
+    { id: 'lv5', label: '전직대통령', icon: '👑', count: LV5_POLITICIANS.length, cost: 5000 },
   ];
 
-  const handleUpgrade = (tierId: string) => {
+  const handleTierUpgrade = (tierId: string) => {
     setTierLevels({ ...tierLevels, [tierId]: tierLevels[tierId] + 1 });
   };
 
+  const handleIndividualUpgrade = (politicianId: string) => {
+    setIndividualLevels({
+      ...individualLevels,
+      [politicianId]: (individualLevels[politicianId] || 0) + 1,
+    });
+  };
+
+  const getIndividualCost = (tier: 'lv5' | 'lv6', politicianId: string) => {
+    const baseCost = tier === 'lv5' ? 3000 : 8000;
+    const level = individualLevels[politicianId] || 0;
+    return Math.floor(baseCost * Math.pow(1.6, level));
+  };
+
   return (
-    <div style={{ display: 'flex', gap: 12 }}>
-      {tiers.map((tier) => {
-        const level = tierLevels[tier.id];
-        const cost = Math.floor(tier.cost * Math.pow(1.5, level));
-        return (
-          <div
-            key={tier.id}
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.3)',
-              borderRadius: 8,
-              padding: 12,
-              border: `1px solid ${TIER_COLORS[tier.id as keyof typeof TIER_COLORS]}`,
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 24, marginBottom: 4 }}>{tier.icon}</div>
-            <div style={{ color: '#fff', fontWeight: 'bold', fontSize: 11 }}>{tier.label}</div>
-            <div style={{ color: '#888', fontSize: 9 }}>{tier.count}명</div>
-            <div style={{ color: '#ffd700', fontSize: 14, fontWeight: 'bold', margin: '6px 0' }}>
-              Lv.{level}
-            </div>
-            <button
-              onClick={() => handleUpgrade(tier.id)}
-              style={{
-                padding: '4px 10px',
-                backgroundColor: TIER_COLORS[tier.id as keyof typeof TIER_COLORS],
-                border: 'none',
-                borderRadius: 4,
-                color: '#fff',
-                fontSize: 10,
-                cursor: 'pointer',
-              }}
-            >
-              강화 ({cost}G)
-            </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Mode Toggle */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button
+          onClick={() => setMode('tier')}
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            backgroundColor: mode === 'tier' ? '#3b82f6' : '#333',
+            border: mode === 'tier' ? '1px solid #60a5fa' : '1px solid #555',
+            borderRadius: 4,
+            color: '#fff',
+            fontSize: 10,
+            cursor: 'pointer',
+          }}
+        >
+          📊 등급별 강화
+        </button>
+        <button
+          onClick={() => setMode('individual')}
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            backgroundColor: mode === 'individual' ? '#f59e0b' : '#333',
+            border: mode === 'individual' ? '1px solid #fbbf24' : '1px solid #555',
+            borderRadius: 4,
+            color: '#fff',
+            fontSize: 10,
+            cursor: 'pointer',
+          }}
+        >
+          👤 개별 강화
+        </button>
+      </div>
+
+      {/* Content */}
+      {mode === 'tier' ? (
+        <div style={{ display: 'flex', gap: 8 }}>
+          {tiers.map((tier) => {
+            const level = tierLevels[tier.id];
+            const cost = Math.floor(tier.cost * Math.pow(1.5, level));
+            return (
+              <div
+                key={tier.id}
+                style={{
+                  flex: 1,
+                  backgroundColor: 'rgba(0,0,0,0.3)',
+                  borderRadius: 6,
+                  padding: 8,
+                  border: `1px solid ${TIER_COLORS[tier.id as keyof typeof TIER_COLORS]}`,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 18, marginBottom: 2 }}>{tier.icon}</div>
+                <div style={{ color: '#fff', fontWeight: 'bold', fontSize: 9 }}>{tier.label}</div>
+                <div style={{ color: '#888', fontSize: 8 }}>{tier.count}명</div>
+                <div style={{ color: '#ffd700', fontSize: 12, fontWeight: 'bold', margin: '4px 0' }}>
+                  Lv.{level}
+                </div>
+                <button
+                  onClick={() => handleTierUpgrade(tier.id)}
+                  style={{
+                    padding: '3px 8px',
+                    backgroundColor: TIER_COLORS[tier.id as keyof typeof TIER_COLORS],
+                    border: 'none',
+                    borderRadius: 3,
+                    color: '#fff',
+                    fontSize: 9,
+                    cursor: 'pointer',
+                  }}
+                >
+                  강화 ({cost}G)
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {/* Lv5 row */}
+          <div style={{ display: 'flex', gap: 4, justifyContent: 'space-between' }}>
+            {LV5_POLITICIANS.slice(0, 5).map((p) => {
+              const level = individualLevels[p.id] || 0;
+              const cost = getIndividualCost('lv5', p.id);
+              return (
+                <div
+                  key={p.id}
+                  style={{
+                    flex: 1,
+                    backgroundColor: 'rgba(0,0,0,0.3)',
+                    borderRadius: 4,
+                    padding: 6,
+                    border: `1px solid ${TIER_COLORS.lv5}40`,
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ color: '#fff', fontSize: 9, fontWeight: 'bold', marginBottom: 2 }}>{p.name}</div>
+                  <div style={{ color: '#ffd700', fontSize: 10 }}>Lv.{level}</div>
+                  <button
+                    onClick={() => handleIndividualUpgrade(p.id)}
+                    style={{
+                      marginTop: 2,
+                      padding: '2px 6px',
+                      backgroundColor: TIER_COLORS.lv5,
+                      border: 'none',
+                      borderRadius: 2,
+                      color: '#fff',
+                      fontSize: 8,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {cost}G
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+          {/* Lv6 row */}
+          <div style={{ display: 'flex', gap: 4 }}>
+            {LV6_POLITICIANS.map((p) => {
+              const level = individualLevels[p.id] || 0;
+              const cost = getIndividualCost('lv6', p.id);
+              return (
+                <div
+                  key={p.id}
+                  style={{
+                    flex: 1,
+                    backgroundColor: 'rgba(0,0,0,0.4)',
+                    borderRadius: 6,
+                    padding: 8,
+                    border: `2px solid ${TIER_COLORS.lv6}`,
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ color: TIER_COLORS.lv6, fontSize: 11, fontWeight: 'bold' }}>{p.name}</div>
+                  <div style={{ color: '#ffd700', fontSize: 12, fontWeight: 'bold', margin: '4px 0' }}>Lv.{level}</div>
+                  <button
+                    onClick={() => handleIndividualUpgrade(p.id)}
+                    style={{
+                      padding: '4px 10px',
+                      backgroundColor: TIER_COLORS.lv6,
+                      border: 'none',
+                      borderRadius: 4,
+                      color: '#fff',
+                      fontSize: 9,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    강화 ({cost}G)
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

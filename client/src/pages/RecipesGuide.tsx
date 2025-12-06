@@ -367,7 +367,6 @@ const RecipesGuide = () => {
                   <RecipeCard key={recipe.id} recipeId={recipe.id} />
                 ))}
               </div>
-              <UnitList tier="x" title="X티어 유닛 목록" />
             </div>
           )}
 
@@ -384,7 +383,6 @@ const RecipesGuide = () => {
                   <RecipeCard key={recipe.id} recipeId={recipe.id} />
                 ))}
               </div>
-              <UnitList tier="z" title="Z티어 유닛 목록" />
             </div>
           )}
 

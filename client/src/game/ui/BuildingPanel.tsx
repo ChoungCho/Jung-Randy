@@ -8,6 +8,8 @@ import {
   LV2_POLITICIANS,
   LV3_POLITICIANS,
   LV4_POLITICIANS,
+  LV5_POLITICIANS,
+  LV6_POLITICIANS,
   TIER_COLORS,
   TIER_BG_COLORS,
   TIER_NAMES,
@@ -325,8 +327,9 @@ function GachaContent() {
 }
 
 // ===== UPGRADE CONTENT - 정치스쿨 =====
-// Tier-based global enhancement: upgrade all units of a tier at once
-type UpgradeTier = 'lv2' | 'lv3' | 'lv4';
+// Two modes: Tier-based global enhancement OR Individual politician upgrades
+type UpgradeMode = 'tier' | 'individual';
+type UpgradeTier = 'lv2' | 'lv3' | 'lv4' | 'lv5';
 
 interface TierUpgradeConfig {
   tier: PoliticianTier;
@@ -366,33 +369,85 @@ const UPGRADE_CONFIG: Record<UpgradeTier, TierUpgradeConfig> = {
     baseCost: 2000,
     bonusPerLevel: { attack: 8, defense: 5, hp: 40 },
   },
+  lv5: {
+    tier: 'lv5',
+    label: '전직대통령 강화',
+    tierName: TIER_NAMES.lv5,
+    icon: '👑',
+    trainingName: '회고록 집필',
+    baseCost: 5000,
+    bonusPerLevel: { attack: 12, defense: 8, hp: 60 },
+  },
+};
+
+// Individual upgrade config for Lv5/Lv6
+interface IndividualUpgradeConfig {
+  baseCost: number;
+  bonusPerLevel: { attack: number; defense: number; hp: number };
+}
+
+const INDIVIDUAL_UPGRADE_CONFIG: Record<'lv5' | 'lv6', IndividualUpgradeConfig> = {
+  lv5: {
+    baseCost: 3000,
+    bonusPerLevel: { attack: 8, defense: 6, hp: 45 },
+  },
+  lv6: {
+    baseCost: 8000,
+    bonusPerLevel: { attack: 15, defense: 12, hp: 80 },
+  },
 };
 
 function UpgradeContent() {
+  const [mode, setMode] = useState<UpgradeMode>('tier');
   // Global tier upgrade levels (affects all units of that tier)
   const [tierLevels, setTierLevels] = useState<Record<UpgradeTier, number>>({
     lv2: 0,
     lv3: 0,
     lv4: 0,
+    lv5: 0,
   });
+  // Individual politician upgrade levels
+  const [individualLevels, setIndividualLevels] = useState<Record<string, number>>({});
 
-  const handleUpgrade = (tier: UpgradeTier) => {
+  const handleTierUpgrade = (tier: UpgradeTier) => {
     setTierLevels({
       ...tierLevels,
       [tier]: tierLevels[tier] + 1,
     });
   };
 
-  const getUpgradeCost = (tier: UpgradeTier) => {
+  const handleIndividualUpgrade = (politicianId: string) => {
+    setIndividualLevels({
+      ...individualLevels,
+      [politicianId]: (individualLevels[politicianId] || 0) + 1,
+    });
+  };
+
+  const getTierUpgradeCost = (tier: UpgradeTier) => {
     const config = UPGRADE_CONFIG[tier];
     const level = tierLevels[tier];
-    // Cost increases by 50% each level
     return Math.floor(config.baseCost * Math.pow(1.5, level));
   };
 
-  const getTotalBonus = (tier: UpgradeTier) => {
+  const getIndividualUpgradeCost = (politician: Politician) => {
+    const config = INDIVIDUAL_UPGRADE_CONFIG[politician.tier as 'lv5' | 'lv6'];
+    const level = individualLevels[politician.id] || 0;
+    return Math.floor(config.baseCost * Math.pow(1.6, level));
+  };
+
+  const getTierTotalBonus = (tier: UpgradeTier) => {
     const config = UPGRADE_CONFIG[tier];
     const level = tierLevels[tier];
+    return {
+      attack: config.bonusPerLevel.attack * level,
+      defense: config.bonusPerLevel.defense * level,
+      hp: config.bonusPerLevel.hp * level,
+    };
+  };
+
+  const getIndividualTotalBonus = (politician: Politician) => {
+    const config = INDIVIDUAL_UPGRADE_CONFIG[politician.tier as 'lv5' | 'lv6'];
+    const level = individualLevels[politician.id] || 0;
     return {
       attack: config.bonusPerLevel.attack * level,
       defense: config.bonusPerLevel.defense * level,
@@ -405,38 +460,40 @@ function UpgradeContent() {
       case 'lv2': return LV2_POLITICIANS.length;
       case 'lv3': return LV3_POLITICIANS.length;
       case 'lv4': return LV4_POLITICIANS.length;
+      case 'lv5': return LV5_POLITICIANS.length;
     }
   };
 
-  return (
-    <div style={{ display: 'flex', gap: 16, height: '100%' }}>
+  // Render tier upgrade cards
+  const renderTierUpgradeMode = () => (
+    <div style={{ display: 'flex', gap: 12, height: '100%', overflowX: 'auto' }}>
       {(Object.keys(UPGRADE_CONFIG) as UpgradeTier[]).map((tier) => {
         const config = UPGRADE_CONFIG[tier];
         const level = tierLevels[tier];
-        const cost = getUpgradeCost(tier);
-        const bonus = getTotalBonus(tier);
+        const cost = getTierUpgradeCost(tier);
+        const bonus = getTierTotalBonus(tier);
         const unitCount = getTierUnitCount(tier);
 
         return (
           <div
             key={tier}
             style={{
-              flex: 1,
+              flex: '0 0 180px',
               backgroundColor: 'rgba(0, 0, 0, 0.3)',
               borderRadius: 12,
-              padding: 16,
+              padding: 14,
               border: `2px solid ${TIER_COLORS[config.tier]}`,
               display: 'flex',
               flexDirection: 'column',
             }}
           >
             {/* Header */}
-            <div style={{ textAlign: 'center', marginBottom: 12 }}>
-              <div style={{ fontSize: 32, marginBottom: 4 }}>{config.icon}</div>
-              <div style={{ color: TIER_COLORS[config.tier], fontWeight: 'bold', fontSize: 14 }}>
+            <div style={{ textAlign: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 28, marginBottom: 4 }}>{config.icon}</div>
+              <div style={{ color: TIER_COLORS[config.tier], fontWeight: 'bold', fontSize: 13 }}>
                 {config.label}
               </div>
-              <div style={{ color: '#888', fontSize: 11 }}>
+              <div style={{ color: '#888', fontSize: 10 }}>
                 {config.tierName} ({unitCount}명)
               </div>
             </div>
@@ -446,49 +503,34 @@ function UpgradeContent() {
               style={{
                 backgroundColor: `${TIER_COLORS[config.tier]}22`,
                 borderRadius: 8,
-                padding: 10,
-                marginBottom: 12,
+                padding: 8,
+                marginBottom: 10,
                 textAlign: 'center',
               }}
             >
-              <div style={{ color: '#ffd700', fontSize: 20, fontWeight: 'bold' }}>
+              <div style={{ color: '#ffd700', fontSize: 18, fontWeight: 'bold' }}>
                 Lv. {level}
               </div>
-              <div style={{ color: '#888', fontSize: 10, marginTop: 2 }}>
+              <div style={{ color: '#888', fontSize: 9, marginTop: 2 }}>
                 🎓 {config.trainingName}
               </div>
             </div>
 
             {/* Current Bonuses */}
-            <div style={{ marginBottom: 12, flex: 1 }}>
-              <div style={{ color: '#aaa', fontSize: 10, marginBottom: 6 }}>현재 보너스</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+            <div style={{ marginBottom: 10, flex: 1 }}>
+              <div style={{ color: '#aaa', fontSize: 9, marginBottom: 4 }}>현재 보너스</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                   <span style={{ color: '#888' }}>공격력</span>
-                  <span style={{ color: '#ff6b6b' }}>
-                    +{bonus.attack}
-                    {level < 10 && (
-                      <span style={{ color: '#666' }}> → +{bonus.attack + config.bonusPerLevel.attack}</span>
-                    )}
-                  </span>
+                  <span style={{ color: '#ff6b6b' }}>+{bonus.attack}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                   <span style={{ color: '#888' }}>방어력</span>
-                  <span style={{ color: '#4dabf7' }}>
-                    +{bonus.defense}
-                    {level < 10 && (
-                      <span style={{ color: '#666' }}> → +{bonus.defense + config.bonusPerLevel.defense}</span>
-                    )}
-                  </span>
+                  <span style={{ color: '#4dabf7' }}>+{bonus.defense}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                   <span style={{ color: '#888' }}>체력</span>
-                  <span style={{ color: '#51cf66' }}>
-                    +{bonus.hp}
-                    {level < 10 && (
-                      <span style={{ color: '#666' }}> → +{bonus.hp + config.bonusPerLevel.hp}</span>
-                    )}
-                  </span>
+                  <span style={{ color: '#51cf66' }}>+{bonus.hp}</span>
                 </div>
               </div>
             </div>
@@ -496,42 +538,251 @@ function UpgradeContent() {
             {/* Upgrade Button */}
             {level < 10 ? (
               <button
-                onClick={() => handleUpgrade(tier)}
+                onClick={() => handleTierUpgrade(tier)}
                 style={{
-                  padding: '10px 16px',
+                  padding: '8px 12px',
                   backgroundColor: TIER_COLORS[config.tier],
                   border: 'none',
                   borderRadius: 8,
                   color: '#fff',
                   fontWeight: 'bold',
-                  fontSize: 12,
+                  fontSize: 11,
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                 }}
               >
-                ⬆️ 강화하기
-                <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>
-                  💰 {cost.toLocaleString()} 정치자금
+                ⬆️ 강화
+                <div style={{ fontSize: 9, opacity: 0.8, marginTop: 2 }}>
+                  💰 {cost.toLocaleString()}
                 </div>
               </button>
             ) : (
               <div
                 style={{
-                  padding: '10px 16px',
+                  padding: '8px 12px',
                   backgroundColor: '#333',
                   borderRadius: 8,
                   color: '#ffd700',
                   fontWeight: 'bold',
-                  fontSize: 12,
+                  fontSize: 11,
                   textAlign: 'center',
                 }}
               >
-                ✨ MAX LEVEL
+                ✨ MAX
               </div>
             )}
           </div>
         );
       })}
+    </div>
+  );
+
+  // Render individual politician upgrades for Lv5/Lv6
+  const renderIndividualUpgradeMode = () => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
+        {/* Lv5 Section */}
+        <div>
+          <div style={{
+            color: TIER_COLORS.lv5,
+            fontWeight: 'bold',
+            fontSize: 13,
+            marginBottom: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            👑 {TIER_NAMES.lv5} ({LV5_POLITICIANS.length}명)
+          </div>
+          <div style={{
+            display: 'flex',
+            gap: 8,
+          }}>
+            {LV5_POLITICIANS.map((p) => {
+              const level = individualLevels[p.id] || 0;
+              const cost = getIndividualUpgradeCost(p);
+              const bonus = getIndividualTotalBonus(p);
+
+              return (
+                <div
+                  key={p.id}
+                  style={{
+                    flex: 1,
+                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                    borderRadius: 8,
+                    padding: 8,
+                    border: `1px solid ${TIER_COLORS.lv5}40`,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{ color: '#fff', fontWeight: 'bold', fontSize: 11 }}>{p.name}</span>
+                    <span style={{ color: '#ffd700', fontSize: 10 }}>Lv.{level}</span>
+                  </div>
+                  <div style={{ color: '#888', fontSize: 9, marginBottom: 4 }}>
+                    +공{bonus.attack} +방{bonus.defense} +HP{bonus.hp}
+                  </div>
+                  {level < 10 ? (
+                    <button
+                      onClick={() => handleIndividualUpgrade(p.id)}
+                      style={{
+                        width: '100%',
+                        padding: '4px 6px',
+                        backgroundColor: TIER_COLORS.lv5,
+                        border: 'none',
+                        borderRadius: 4,
+                        color: '#fff',
+                        fontSize: 9,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      강화 💰{cost.toLocaleString()}
+                    </button>
+                  ) : (
+                    <div style={{ textAlign: 'center', color: '#ffd700', fontSize: 9 }}>✨ MAX</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Lv6 Section */}
+        <div>
+          <div style={{
+            color: TIER_COLORS.lv6,
+            fontWeight: 'bold',
+            fontSize: 13,
+            marginBottom: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            🔥 {TIER_NAMES.lv6} ({LV6_POLITICIANS.length}명)
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: 8,
+          }}>
+            {LV6_POLITICIANS.map((p) => {
+              const level = individualLevels[p.id] || 0;
+              const cost = getIndividualUpgradeCost(p);
+              const bonus = getIndividualTotalBonus(p);
+
+              return (
+                <div
+                  key={p.id}
+                  style={{
+                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                    borderRadius: 10,
+                    padding: 12,
+                    border: `2px solid ${TIER_COLORS.lv6}`,
+                    boxShadow: `0 0 10px ${TIER_COLORS.lv6}30`,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ color: TIER_COLORS.lv6, fontWeight: 'bold', fontSize: 14 }}>{p.name}</span>
+                    <span style={{
+                      color: '#ffd700',
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      backgroundColor: 'rgba(255, 215, 0, 0.2)',
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                    }}>Lv.{level}</span>
+                  </div>
+                  <div style={{ color: '#aaa', fontSize: 10, marginBottom: 6 }}>
+                    +공격력 {bonus.attack} · +방어력 {bonus.defense} · +HP {bonus.hp}
+                  </div>
+                  {level < 10 ? (
+                    <button
+                      onClick={() => handleIndividualUpgrade(p.id)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        backgroundColor: TIER_COLORS.lv6,
+                        border: 'none',
+                        borderRadius: 6,
+                        color: '#fff',
+                        fontWeight: 'bold',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ⬆️ 개별 강화 💰{cost.toLocaleString()}
+                    </button>
+                  ) : (
+                    <div style={{
+                      textAlign: 'center',
+                      color: '#ffd700',
+                      fontSize: 11,
+                      fontWeight: 'bold',
+                      padding: '6px 10px',
+                      backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                      borderRadius: 6,
+                    }}>
+                      ✨ MAX LEVEL
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
+      {/* Mode Tab Navigation */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={() => setMode('tier')}
+          style={{
+            flex: 1,
+            padding: '10px 16px',
+            backgroundColor: mode === 'tier' ? '#4a5568' : 'rgba(0, 0, 0, 0.3)',
+            border: mode === 'tier' ? '2px solid #63b3ed' : '2px solid transparent',
+            borderRadius: 8,
+            color: mode === 'tier' ? '#fff' : '#888',
+            fontWeight: mode === 'tier' ? 'bold' : 'normal',
+            fontSize: 13,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          📊 등급별 강화
+          <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>
+            Lv2~Lv5 전체 유닛 강화
+          </div>
+        </button>
+        <button
+          onClick={() => setMode('individual')}
+          style={{
+            flex: 1,
+            padding: '10px 16px',
+            backgroundColor: mode === 'individual' ? '#4a5568' : 'rgba(0, 0, 0, 0.3)',
+            border: mode === 'individual' ? '2px solid #f6ad55' : '2px solid transparent',
+            borderRadius: 8,
+            color: mode === 'individual' ? '#fff' : '#888',
+            fontWeight: mode === 'individual' ? 'bold' : 'normal',
+            fontSize: 13,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          👤 개별 강화
+          <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>
+            Lv5/Lv6 개별 유닛 강화
+          </div>
+        </button>
+      </div>
+
+      {/* Content Area */}
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {mode === 'tier' ? renderTierUpgradeMode() : renderIndividualUpgradeMode()}
+      </div>
     </div>
   );
 }
