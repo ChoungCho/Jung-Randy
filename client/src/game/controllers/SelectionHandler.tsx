@@ -42,6 +42,7 @@ export function SelectionHandler({
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const clickStartedOnCanvasRef = useRef(false);
+  const lastMoveCmdRef = useRef<{ t: number; target: THREE.Vector3; ids: string[] } | null>(null);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -107,8 +108,26 @@ export function SelectionHandler({
           targetPoint = clampToWalkableArea(intersection);
         }
 
+        // Skip if same command issued very recently with same target and selection
+        const now = Date.now();
+        const rounded = targetPoint.clone();
+        rounded.x = parseFloat(rounded.x.toFixed(3));
+        rounded.y = parseFloat(rounded.y.toFixed(3));
+        rounded.z = parseFloat(rounded.z.toFixed(3));
+        const idsSorted = Array.from(selectedCharacterIds).sort();
+        const last = lastMoveCmdRef.current;
+        const isSameSelection = last && last.ids.length === idsSorted.length && last.ids.every((id, idx) => id === idsSorted[idx]);
+        const isSamePoint = last && last.target.distanceTo(rounded) < 0.1;
+        const isWithinWindow = last && now - last.t < 500;
+        if (isSameSelection && isSamePoint && isWithinWindow) {
+          return;
+        }
+        lastMoveCmdRef.current = { t: now, target: rounded, ids: idsSorted };
+
         // Trigger move indicator effect at the target position
-        onMoveCommand(targetPoint.clone());
+        if (!(isSameSelection && isSamePoint && isWithinWindow)) {
+          onMoveCommand(targetPoint.clone());
+        }
 
         // Move all selected characters using waypoint system
         const selectedChars = characters.filter(c => selectedCharacterIds.has(c.id));
@@ -120,6 +139,13 @@ export function SelectionHandler({
           const finalTarget = targetPoint.clone();
           finalTarget.x += Math.cos(offsetAngle) * offsetDist;
           finalTarget.z += Math.sin(offsetAngle) * offsetDist;
+
+          if (char.position.distanceTo(finalTarget) < 0.05) return;
+
+          // Skip if already heading to (roughly) the same final waypoint
+          const lastWaypoint = char.waypointQueue[char.waypointQueue.length - 1];
+          if (lastWaypoint && lastWaypoint.distanceTo(finalTarget) < 0.05) return;
+          if (!lastWaypoint && char.targetPosition && char.targetPosition.distanceTo(finalTarget) < 0.05) return;
 
           // Calculate path with waypoints for cross-zone movement
           const path = calculatePath(char.position, finalTarget);

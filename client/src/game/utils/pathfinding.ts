@@ -6,6 +6,7 @@ import {
   BRIDGE_EXIT_X,
   INNER_BOUND,
   BOSS_PLATFORM_HALF_SIZE,
+  BRIDGE_HALF_WIDTH,
 } from '../constants';
 
 /**
@@ -15,6 +16,12 @@ import {
 export function calculatePath(startPos: THREE.Vector3, targetPos: THREE.Vector3): THREE.Vector3[] {
   const innerBound = INNER_BOUND;
   const bossPlatformHalfSize = BOSS_PLATFORM_HALF_SIZE;
+  const laneAnchor = (pos: THREE.Vector3) => {
+    const maxLaneOffset = BRIDGE_HALF_WIDTH - 0.1;
+    if (Math.abs(pos.z) < 0.1) return 0;
+    const sign = pos.z >= 0 ? 1 : -1;
+    return sign * Math.min(Math.abs(pos.z), maxLaneOffset);
+  };
 
   // Determine which zone each position is in
   const isInMain = (pos: THREE.Vector3) =>
@@ -34,8 +41,9 @@ export function calculatePath(startPos: THREE.Vector3, targetPos: THREE.Vector3)
   const targetOnBridge = isOnBridge(targetPos);
 
   // Bridge waypoints
-  const bridgeEntry = new THREE.Vector3(BRIDGE_ENTRY_X + 0.5, 0, 0);
-  const bridgeExit = new THREE.Vector3(BRIDGE_EXIT_X - 0.5, 0, 0);
+  const laneZ = Math.abs(startPos.z) > 0.1 ? laneAnchor(startPos) : laneAnchor(targetPos);
+  const bridgeEntry = new THREE.Vector3(BRIDGE_ENTRY_X + 0.5, 0, laneZ);
+  const bridgeExit = new THREE.Vector3(BRIDGE_EXIT_X - 0.5, 0, laneZ);
 
   // Main to Boss: go through bridge
   if (startInMain && targetInBoss) {

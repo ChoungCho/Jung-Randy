@@ -115,12 +115,12 @@ export interface MonsterStats {
 }
 
 export const MONSTER_BASE_STATS: MonsterStats = {
-  baseHp: 80, // Increased by 50 (30 + 50 = 80)
+  baseHp: 75,
   baseDamage: 5,
   baseDefense: 2,
   moveSpeed: 0.07,
-  hpPerWave: 15, // +15 HP per wave
-  sizeMultiplierPerWave: 0.08, // +8% size per wave
+  hpPerWave: 12,
+  sizeMultiplierPerWave: 0.06,
 };
 
 // ===== ROUND SCALING CONFIGURATION =====
@@ -129,6 +129,10 @@ export interface RoundScalingConfig {
   hpScalingType: 'linear' | 'exponential';
   hpLinearMultiplier: number; // for linear: baseHp + (wave - 1) * multiplier
   hpExponentialBase: number; // for exponential: baseHp * (base ^ (wave - 1))
+  hpPostExponentialBase?: number; // optional softer base after a soft cap
+  hpSoftCapWave?: number; // wave after which growth eases
+  bossHpMultiplier?: number; // extra multiplier for world bosses
+  worldBossHpMultiplier?: number; // extra multiplier for world boss on platform
   
   // Damage scaling
   damageScalingType: 'linear' | 'exponential';
@@ -139,33 +143,41 @@ export interface RoundScalingConfig {
   defenseScalingType: 'linear' | 'exponential';
   defenseLinearMultiplier: number;
   defenseExponentialBase: number;
+  defensePostExponentialBase?: number;
+  defenseSoftCapWave?: number;
+  bossDefenseMultiplier?: number;
+  worldBossDefenseMultiplier?: number;
   
   // Size scaling (always linear for visual consistency)
   sizeMultiplierPerWave: number;
 }
 
 export const ROUND_SCALING_CONFIG: RoundScalingConfig = {
-  // HP: Exponential scaling for 50 rounds (increased difficulty - 50% more than previous)
-  // Formula: baseHp * (1.36 ^ (wave - 1))
-  // This gives: R1=30, R10=1,200, R25=1,400,000, R50=1,700,000,000 HP (very hard!)
+  // HP: Hybrid exponential with softer slope after wave 30
   hpScalingType: 'exponential',
-  hpLinearMultiplier: 15, // Not used when exponential
-  hpExponentialBase: 1.36, // 36% increase per wave (50% more than previous 24%)
+  hpLinearMultiplier: 12,
+  hpExponentialBase: 1.22,
+  hpPostExponentialBase: 1.1,
+  hpSoftCapWave: 30,
+  bossHpMultiplier: 10,
+  worldBossHpMultiplier: 15,
   
   // Damage: Not used (monsters don't attack), but kept for compatibility
   damageScalingType: 'linear',
   damageLinearMultiplier: 0, // Not used
   damageExponentialBase: 1.0, // Not used
   
-  // Defense: Exponential scaling (2x the previous rate)
-  // Formula: baseDefense * (1.28 ^ (wave - 1))
-  // This gives: R1=2, R10=25, R25=1,200, R50=140,000 defense (very hard!)
+  // Defense: Hybrid exponential with softer slope after wave 30
   defenseScalingType: 'exponential',
-  defenseLinearMultiplier: 1, // Not used when exponential
-  defenseExponentialBase: 1.28, // 28% increase per wave (2x the previous 14%)
+  defenseLinearMultiplier: 0.8,
+  defenseExponentialBase: 1.18,
+  defensePostExponentialBase: 1.08,
+  defenseSoftCapWave: 30,
+  bossDefenseMultiplier: 5,
+  worldBossDefenseMultiplier: 7,
   
   // Size: Always linear (visual only)
-  sizeMultiplierPerWave: 0.05, // +5% size per wave (reduced for 50 rounds)
+  sizeMultiplierPerWave: 0.04, // +4% size per wave
 };
 
 /**
@@ -195,14 +207,23 @@ export function getMonsterStatsForWave(wave: number): {
   // Calculate HP based on scaling type
   let hp: number;
   if (scaling.hpScalingType === 'exponential') {
-    hp = Math.floor(baseHp * Math.pow(scaling.hpExponentialBase, referenceWave - 1));
+    const totalWaves = Math.max(0, referenceWave - 1);
+    const softCapWave = scaling.hpSoftCapWave ?? referenceWave;
+    const primaryWaves = Math.min(totalWaves, Math.max(0, softCapWave - 1));
+    const postWaves = Math.max(0, totalWaves - primaryWaves);
+    const postBase = scaling.hpPostExponentialBase ?? scaling.hpExponentialBase;
+    hp = Math.floor(
+      baseHp *
+      Math.pow(scaling.hpExponentialBase, primaryWaves) *
+      Math.pow(postBase, postWaves)
+    );
   } else {
     hp = baseHp + (referenceWave - 1) * scaling.hpLinearMultiplier;
   }
   
   // Boss: 10x HP
   if (isBoss) {
-    hp = hp * 10;
+    hp = hp * (scaling.bossHpMultiplier ?? 10);
   }
   
   // Calculate Damage - not used (monsters don't attack), but kept for type compatibility
@@ -211,14 +232,23 @@ export function getMonsterStatsForWave(wave: number): {
   // Calculate Defense based on scaling type
   let defense: number;
   if (scaling.defenseScalingType === 'exponential') {
-    defense = Math.floor(baseDefense * Math.pow(scaling.defenseExponentialBase, referenceWave - 1));
+    const totalWaves = Math.max(0, referenceWave - 1);
+    const softCapWave = scaling.defenseSoftCapWave ?? referenceWave;
+    const primaryWaves = Math.min(totalWaves, Math.max(0, softCapWave - 1));
+    const postWaves = Math.max(0, totalWaves - primaryWaves);
+    const postBase = scaling.defensePostExponentialBase ?? scaling.defenseExponentialBase;
+    defense = Math.floor(
+      baseDefense *
+      Math.pow(scaling.defenseExponentialBase, primaryWaves) *
+      Math.pow(postBase, postWaves)
+    );
   } else {
     defense = baseDefense + Math.floor((referenceWave - 1) * scaling.defenseLinearMultiplier);
   }
   
   // Boss: 5x Defense
   if (isBoss) {
-    defense = defense * 5;
+    defense = defense * (scaling.bossDefenseMultiplier ?? 5);
   }
   
   // Size is always linear
@@ -256,13 +286,13 @@ export const MAX_ACTIVE_MONSTERS = 120; // Lose if more than this are alive
 
 export const WAVE_CONFIG: WaveConfig = {
   totalWaves: 50, // 50 rounds for extended gameplay
-  baseMonstersPerWave: 30, // 30 monsters per wave
-  monstersPerWaveScaling: 'fixed', // Keep the count stable per wave
-  monstersPerWaveLinearIncrease: 0,
+  baseMonstersPerWave: 24, // lighter start
+  monstersPerWaveScaling: 'linear',
+  monstersPerWaveLinearIncrease: 1,
   monstersPerWaveExponentialBase: 1.0,
-  spawnInterval: 3000, // Spread 30 spawns across 90 seconds
-  spawnIntervalScaling: 'fixed', // Keep spawn interval constant
-  spawnIntervalDecreasePerWave: 0,
+  spawnInterval: 2600, // faster pace
+  spawnIntervalScaling: 'decreasing',
+  spawnIntervalDecreasePerWave: 40,
   waveDelay: 30_000, // Rest window after spawns (not used directly, kept for reference)
 };
 

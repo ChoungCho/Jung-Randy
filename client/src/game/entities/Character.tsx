@@ -4,7 +4,7 @@ import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { useGLTF, Html } from '@react-three/drei';
 import { SkeletonUtils } from 'three-stdlib';
 import * as THREE from 'three';
-import { CharacterData, MonsterData } from '../types';
+import { CharacterData, MonsterData, TargetingMode } from '../types';
 import {
   CHARACTER1_SCALE,
   CHARACTER2_SCALE,
@@ -18,7 +18,7 @@ import {
   ATTACK_ANIMATION_DURATION_FACTOR,
   GLOBAL_ATTACK_SPEED_MULTIPLIER,
 } from '../constants';
-import { removeRootMotion } from '../utils';
+import { removeRootMotion, pickTarget } from '../utils';
 import { calculateDamage } from '../gameData';
 import { CircleLine } from '../components/CircleLine';
 import { TIER_COLORS, TIER_NAMES, PARTY_COLORS } from '../data/politicians';
@@ -44,9 +44,22 @@ interface CharacterProps {
   monsterPosRefs: Map<string, THREE.Vector3>;
   onAttackMonster: (attackerId: string, monsterId: string, damage: number) => void;
   onStateChange: (charId: string, state: CharacterData['state']) => void;
+  hideOverlay?: boolean;
+  targetingMode: TargetingMode;
 }
 
-export function Character({ data, isSelected, onSelect, onSelectAllSameType, monsters, monsterPosRefs, onAttackMonster, onStateChange }: CharacterProps) {
+export function Character({
+  data,
+  isSelected,
+  onSelect,
+  onSelectAllSameType,
+  monsters,
+  monsterPosRefs,
+  onAttackMonster,
+  onStateChange,
+  hideOverlay = false,
+  targetingMode,
+}: CharacterProps) {
   const groupRef = useRef<THREE.Group>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const actionRef = useRef<THREE.AnimationAction | null>(null);
@@ -60,6 +73,7 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
   const cancelAttackRef = useRef(false);
   const isAoESkillRef = useRef(false);
   const lastClickTimeRef = useRef<number>(0);
+  const lastClickedIdRef = useRef<string | null>(null);
 
   // Keep monsters in ref to avoid useEffect re-runs when monsters change
   const monstersRef = useRef(monsters);
@@ -158,19 +172,25 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
       }
 
       if (monstersInRange.length > 0) {
-        monstersInRange.sort((a, b) => a.dist - b.dist);
-        const nearest = monstersInRange[0];
+        const picked = pickTarget(monsters, monsterPosRefs, currentPos, skillRange, targetingMode);
+        const fallback = monstersInRange.reduce<{ id: string; pos: THREE.Vector3; dist: number } | null>((best, cur) => {
+          if (!best || cur.dist < best.dist) return cur;
+          return best;
+        }, null);
+
+        const targetId = picked?.id || fallback?.id;
+        const targetPos = targetId ? (monsterPosRefs.get(targetId) || currentPos) : currentPos;
 
         if (isAoE) {
           aoeTargetsRef.current = monstersInRange.map(m => m.id);
-          currentTargetRef.current = nearest.id;
+          currentTargetRef.current = targetId || monstersInRange[0].id;
         } else {
-          currentTargetRef.current = nearest.id;
+          currentTargetRef.current = targetId || monstersInRange[0].id;
         }
 
         pendingDamageMultiplierRef.current = activeSkill?.damageMultiplier || 1.0;
 
-        const dir = new THREE.Vector3().subVectors(nearest.pos, currentPos);
+        const dir = new THREE.Vector3().subVectors(targetPos, currentPos);
         groupRef.current.rotation.y = Math.atan2(dir.x, dir.z);
       } else {
         currentTargetRef.current = null;
@@ -353,33 +373,19 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
       setCurrentState('idle');
     }
 
-    // Find nearest alive monster in range
-    let nearestMonster: { id: string; dist: number; pos: THREE.Vector3 } | null = null;
     const attackRange = data.stats.attackRange;
-
-    for (const monster of monsters) {
-      if (monster.isDying) continue;
-      const monsterPos = monsterPosRefs.get(monster.id);
-      if (!monsterPos) continue;
-
-      const dist = currentPos.distanceTo(monsterPos);
-      if (dist <= attackRange && (!nearestMonster || dist < nearestMonster.dist)) {
-        nearestMonster = { id: monster.id, dist, pos: monsterPos };
-      }
-    }
-
-    const isInRange = nearestMonster !== null;
-    setInRange(isInRange);
+    const target = pickTarget(monsters, monsterPosRefs, currentPos, attackRange, targetingMode);
+    setInRange(!!target);
 
     // Only trigger attack if not already attacking AND not protected by skill lock AND no active move command
-    if (isInRange && !isAttacking && !isPlayingSkillRef.current && !data.targetPosition) {
+    if (target && !isAttacking && !isPlayingSkillRef.current && !data.targetPosition) {
       const now = Date.now();
       const effectiveAttackSpeed = data.stats.attackSpeed * GLOBAL_ATTACK_SPEED_MULTIPLIER;
       const attackCooldown = 1000 / effectiveAttackSpeed;
       if (now - data.lastAttackTime > attackCooldown) {
         data.targetPosition = null;
         data.lastAttackTime = now;
-        currentTargetRef.current = nearestMonster!.id;
+        currentTargetRef.current = target.id;
 
         const passiveSkill = data.stats.skills.passive;
         if (passiveSkill && Math.random() < passiveSkill.triggerChance) {
@@ -393,7 +399,7 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
           onStateChange(data.id, 'attacking');
         }
 
-        const dir = new THREE.Vector3().subVectors(nearestMonster!.pos, currentPos);
+        const dir = new THREE.Vector3().subVectors(target.pos, currentPos);
         groupRef.current.rotation.y = Math.atan2(dir.x, dir.z);
       }
     }
@@ -428,14 +434,17 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
 
     const currentTime = Date.now();
     const timeSinceLastClick = currentTime - lastClickTimeRef.current;
-    const isDoubleClick = timeSinceLastClick < 300;
+    const sameTargetAsLast = lastClickedIdRef.current === data.id;
+    const isDoubleClick = sameTargetAsLast && timeSinceLastClick < 250;
 
     if (isDoubleClick && onSelectAllSameType) {
       onSelectAllSameType(data.type);
       lastClickTimeRef.current = 0;
+      lastClickedIdRef.current = null;
     } else {
       onSelect(data.id, e.shiftKey);
       lastClickTimeRef.current = currentTime;
+      lastClickedIdRef.current = data.id;
     }
   };
 
@@ -513,7 +522,7 @@ export function Character({ data, isSelected, onSelect, onSelectAllSameType, mon
       )}
 
       {/* Name and tier label for politician units */}
-      {data.politician && (
+      {data.politician && !hideOverlay && (
         <Html
           position={[0, 2.5 / charScale, 0]}
           center
