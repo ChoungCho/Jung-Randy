@@ -1,4 +1,4 @@
-// ===== STATUS PANEL UI (Bottom Panel) =====
+﻿// ===== STATUS PANEL UI (Bottom Panel) =====
 import { useEffect, useState, useMemo } from 'react';
 import { CharacterData, MonsterData, SelectionTarget } from '../types';
 import { BuildingType, BUILDINGS } from '../buildings';
@@ -60,12 +60,11 @@ export function StatusPanel({
           <div style={portraitBox('#1a1a1a', '#660000', 64, 8)}>👹</div>
           <div style={{ flex: 1 }}>
             <h3 style={{ margin: '0 0 8px 0', color: '#ff6666' }}>
-              Wave {monster.wave} Monster
+              웨이브 {monster.wave} 몬스터
             </h3>
-            <StatBar label="HP" value={monster.hp} max={monster.maxHp} />
+            <StatBar label="체력" value={monster.hp} max={monster.maxHp} />
             <div style={{ display: 'flex', gap: '20px', fontSize: 12, color: '#ccc' }}>
-              <span>ATK: {monster.damage}</span>
-              <span>DEF: {monster.defense}</span>
+              <span>방어력: {monster.defense}</span>
             </div>
           </div>
         </div>
@@ -118,7 +117,6 @@ export function StatusPanel({
           style={tileBox}
         >
           <div style={{ fontSize: 20 }}>{char.type === 1 ? '🥊' : '💪'}</div>
-          <MiniHpBar current={char.currentHp} max={char.stats.maxHp} />
         </div>
       );
     };
@@ -174,11 +172,8 @@ export function StatusPanel({
 
         <div style={{ flex: 1 }}>
           <h3 style={{ margin: '0 0 8px 0', color: '#90ee90' }}>{stats.name}</h3>
-          <StatBar label="HP" value={char.currentHp} max={stats.maxHp} />
           <div style={{ display: 'flex', gap: 15, fontSize: 12, color: '#ccc' }}>
-            <span>ATK: {stats.attack}</span>
-            <span>DEF: {stats.defense}</span>
-            <span>SPD: {stats.attackSpeed.toFixed(1)}/s</span>
+            <span>공격력: {stats.attack}</span>
           </div>
         </div>
 
@@ -246,8 +241,8 @@ const portraitBox = (bg: string, border: string, size: number, radius: number) =
 });
 
 const tileBox = {
-  width: '48px',
-  height: '48px',
+  width: '52px',
+  height: '52px',
   background: '#1a3a1a',
   border: '2px solid #4a7c4a',
   borderRadius: '6px',
@@ -257,6 +252,8 @@ const tileBox = {
   alignItems: 'center',
   justifyContent: 'center',
   position: 'relative' as const,
+  fontWeight: 800,
+  fontSize: 18,
 };
 
 const counterBox = {
@@ -314,26 +311,6 @@ const skillBox = (bg: string, border: string, _color: string, cursor: string, di
   position: 'relative' as const,
   opacity: dim ? 0.6 : 1,
 });
-
-function MiniHpBar({ current, max }: { current: number; max: number }) {
-  return (
-    <div style={{
-      position: 'absolute',
-      bottom: '2px',
-      left: '2px',
-      right: '2px',
-      height: '4px',
-      background: '#333',
-      borderRadius: '2px',
-    }}>
-      <div style={{
-        width: `${(current / max) * 100}%`,
-        height: '100%',
-        background: current > max / 2 ? '#4CAF50' : '#f44336',
-      }} />
-    </div>
-  );
-}
 
 function StatBar({ label, value, max }: { label: string; value: number; max: number }) {
   return (
@@ -693,18 +670,11 @@ function PoliticianStatusPanel({ char, characters, onCombine }: PoliticianStatus
 
   return (
     <div style={{
-      position: 'absolute',
-      bottom: 20,
-      left: '50%',
-      transform: 'translateX(-50%)',
+      ...panelStyle('character'),
       background: 'rgba(20, 20, 40, 0.95)',
       border: `2px solid ${partyColor}`,
-      borderRadius: '12px',
-      padding: '12px 16px',
-      color: 'white',
-      fontFamily: 'monospace',
-      minWidth: '480px',
-      zIndex: 100,
+      padding: '15px 20px',
+      minWidth: '640px',
     }}>
       <div style={{ display: 'flex', gap: 20 }}>
         {/* Portrait */}
@@ -747,11 +717,8 @@ function PoliticianStatusPanel({ char, characters, onCombine }: PoliticianStatus
               {PARTY_NAMES[politician.party]}
             </span>
           </div>
-          <StatBar label="HP" value={char.currentHp} max={char.stats.maxHp} />
           <div style={{ display: 'flex', gap: 15, fontSize: 12, color: '#ccc' }}>
-            <span>ATK: {char.stats.attack}</span>
-            <span>DEF: {char.stats.defense}</span>
-            <span>SPD: {char.stats.attackSpeed.toFixed(1)}/s</span>
+            <span>공격력: {char.stats.attack}</span>
           </div>
         </div>
 
