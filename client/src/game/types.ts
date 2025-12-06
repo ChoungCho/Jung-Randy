@@ -3,6 +3,14 @@ import * as THREE from 'three';
 import { CharacterStats } from './gameData';
 import { PoliticianTier, Party } from './data/politicians';
 
+// Targeting priority for characters
+export type TargetingMode =
+  | 'closest'
+  | 'lowest_hp'
+  | 'highest_hp'
+  | 'boss_first'
+  | 'clustered';
+
 // Character data structure
 export interface CharacterData {
   id: string;
@@ -38,10 +46,11 @@ export interface MonsterData {
   progress: number;
   isDying: boolean;
   isBoss: boolean; // true if this is a boss monster (every 10 waves)
+  isWorldBoss?: boolean;
 }
 
 // Game state type
-export type GameState = 'playing' | 'gameover';
+export type GameState = 'lobby' | 'loading' | 'playing' | 'gameover';
 
 // Selection target type
 export type SelectionTarget = {

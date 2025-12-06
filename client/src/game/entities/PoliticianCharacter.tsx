@@ -5,7 +5,7 @@ import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { useGLTF, Html } from '@react-three/drei';
 import { SkeletonUtils } from 'three-stdlib';
 import * as THREE from 'three';
-import { CharacterData, MonsterData } from '../types';
+import { CharacterData, MonsterData, TargetingMode } from '../types';
 import {
   CHARACTER_SPEED,
   PLATFORM_SIZE,
@@ -17,7 +17,7 @@ import {
   ATTACK_ANIMATION_DURATION_FACTOR,
   GLOBAL_ATTACK_SPEED_MULTIPLIER,
 } from '../constants';
-import { removeRootMotion } from '../utils';
+import { removeRootMotion, pickTarget } from '../utils';
 import { calculateDamage } from '../gameData';
 import { CircleLine } from '../components/CircleLine';
 import { TIER_COLORS, TIER_NAMES, PARTY_COLORS } from '../data/politicians';
@@ -39,6 +39,8 @@ interface PoliticianCharacterProps {
   monsterPosRefs: Map<string, THREE.Vector3>;
   onAttackMonster: (attackerId: string, monsterId: string, damage: number) => void;
   onStateChange: (charId: string, state: CharacterData['state']) => void;
+  hideOverlay?: boolean;
+  targetingMode: TargetingMode;
 }
 
 export function PoliticianCharacter({
@@ -49,7 +51,9 @@ export function PoliticianCharacter({
   monsters,
   monsterPosRefs,
   onAttackMonster,
-  onStateChange
+  onStateChange,
+  hideOverlay = false,
+  targetingMode,
 }: PoliticianCharacterProps) {
   const groupRef = useRef<THREE.Group>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
@@ -271,38 +275,24 @@ export function PoliticianCharacter({
       setCurrentState('idle');
     }
 
-    // Find nearest alive monster in range
-    let nearestMonster: { id: string; dist: number; pos: THREE.Vector3 } | null = null;
     const attackRange = data.stats.attackRange;
-
-    for (const monster of monsters) {
-      if (monster.isDying) continue;
-      const monsterPos = monsterPosRefs.get(monster.id);
-      if (!monsterPos) continue;
-
-      const dist = currentPos.distanceTo(monsterPos);
-      if (dist <= attackRange && (!nearestMonster || dist < nearestMonster.dist)) {
-        nearestMonster = { id: monster.id, dist, pos: monsterPos };
-      }
-    }
-
-    const isInRange = nearestMonster !== null;
-    setInRange(isInRange);
+    const target = pickTarget(monsters, monsterPosRefs, currentPos, attackRange, targetingMode);
+    setInRange(!!target);
 
     // Trigger attack
-    if (isInRange && !isAttacking && !data.targetPosition) {
+    if (target && !isAttacking && !data.targetPosition) {
       const now = Date.now();
       const effectiveAttackSpeed = data.stats.attackSpeed * GLOBAL_ATTACK_SPEED_MULTIPLIER;
       const attackCooldown = 1000 / effectiveAttackSpeed;
       if (now - data.lastAttackTime > attackCooldown) {
         data.targetPosition = null;
         data.lastAttackTime = now;
-        currentTargetRef.current = nearestMonster!.id;
+        currentTargetRef.current = target.id;
         pendingDamageMultiplierRef.current = 1.0;
         setCurrentState('attacking');
         onStateChange(data.id, 'attacking');
 
-        const dir = new THREE.Vector3().subVectors(nearestMonster!.pos, currentPos);
+        const dir = new THREE.Vector3().subVectors(target.pos, currentPos);
         groupRef.current.rotation.y = Math.atan2(dir.x, dir.z);
       }
     }
@@ -418,7 +408,7 @@ export function PoliticianCharacter({
       />
 
       {/* Name and tier label for politician units */}
-      {data.politician && (
+      {data.politician && !hideOverlay && (
         <Html
           position={[0, 2.5 / charScale, 0]}
           center

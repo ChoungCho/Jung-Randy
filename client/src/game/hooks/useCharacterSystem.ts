@@ -8,6 +8,7 @@ import {
   CombinationOption,
   executeCombination,
 } from '../data/politicians';
+import { calculatePath } from '../utils/pathfinding';
 
 interface UseCharacterSystemReturn {
   // Characters
@@ -40,6 +41,7 @@ interface UseCharacterSystemReturn {
   handleUseActiveSkill: (charId: string) => void;
   handleStateChange: (charId: string, state: CharacterData['state']) => void;
   handleStopCommand: () => void;
+  handleRallySameUnits: (anchorCharId: string) => void;
   handleSaveGroup: (groupNumber: number) => void;
   handleSelectGroup: (groupNumber: number) => void;
 }
@@ -67,7 +69,14 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
       position,
       startTime: Date.now()
     };
-    setMoveIndicators(prev => [...prev, newIndicator]);
+    // Keep only the latest indicator, and skip if position is effectively identical
+    setMoveIndicators(prev => {
+      const last = prev[prev.length - 1];
+      if (last && last.position.distanceTo(position) < 0.05) {
+        return prev;
+      }
+      return [newIndicator];
+    });
   }, []);
 
   // Remove completed indicator
@@ -337,6 +346,35 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
     }));
   }, [selectedCharacterIds]);
 
+  // Rally all identical units to a single anchor
+  const handleRallySameUnits = useCallback((anchorCharId: string) => {
+    const anchor = characters.find(c => c.id === anchorCharId);
+    if (!anchor) return;
+
+    const targetPos = anchor.position.clone();
+    const templateId = anchor.stats.id;
+    const rallyTargets = characters.filter(c => c.id !== anchorCharId && c.stats.id === templateId);
+    if (rallyTargets.length === 0) return;
+
+    const indicator: MoveIndicatorData = {
+      id: `rally-${Date.now()}`,
+      position: targetPos.clone(),
+      startTime: Date.now(),
+    };
+    setMoveIndicators(prev => [...prev, indicator]);
+
+    setCharacters(prev => prev.map(c => {
+      if (c.id === anchorCharId || c.stats.id !== templateId) return c;
+      const path = calculatePath(c.position.clone(), targetPos.clone());
+      return {
+        ...c,
+        waypointQueue: path,
+        targetPosition: path[0] || null,
+        state: 'running',
+      };
+    }));
+  }, [characters]);
+
   // Save current selection to control group (Ctrl + number)
   const handleSaveGroup = useCallback((groupNumber: number) => {
     if (groupNumber < 1 || groupNumber > 9) return;
@@ -391,6 +429,7 @@ export function useCharacterSystem(): UseCharacterSystemReturn {
     handleUseActiveSkill,
     handleStateChange,
     handleStopCommand,
+    handleRallySameUnits,
     handleSaveGroup,
     handleSelectGroup,
   };
